@@ -5,11 +5,13 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
+from starlette._utils import get_route_path
 
 from app.services.cancellation import (
     CancellationNotAllowedError, InvalidCancellationCredentialsError,
 )
 from app.services.errors import DateConflictError, InvalidInputError, TemporaryDatabaseError
+from app.services.admin import AdminChangeNotAllowedError, AdminNotFoundError
 
 
 def error_response(status: int, code: str, message: str, **extra) -> JSONResponse:
@@ -17,6 +19,14 @@ def error_response(status: int, code: str, message: str, **extra) -> JSONRespons
 
 
 def install_error_handlers(app: FastAPI) -> None:
+    @app.exception_handler(AdminNotFoundError)
+    async def admin_not_found(request: Request, error: AdminNotFoundError):
+        return error_response(404, "NOT_FOUND", "요청한 대상을 찾을 수 없습니다")
+
+    @app.exception_handler(AdminChangeNotAllowedError)
+    async def admin_change_not_allowed(request: Request, error: AdminChangeNotAllowedError):
+        return error_response(409, "CHANGE_NOT_ALLOWED", "현재 상태에서는 변경할 수 없습니다")
+
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, error: RequestValidationError):
         if any(item["type"] == "json_invalid" for item in error.errors()):
@@ -46,8 +56,12 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, error: HTTPException):
         from app.middleware import is_public_api_path
+        from app.security import is_admin_path
 
-        if not is_public_api_path(request.scope["path"]):
+        if not any(
+            is_public_api_path(path) or is_admin_path(path)
+            for path in (request.scope["path"], get_route_path(request.scope))
+        ):
             return await http_exception_handler(request, error)
         messages = {
             400: ("INVALID_JSON", "올바른 JSON 본문이 필요합니다"),

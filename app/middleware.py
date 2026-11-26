@@ -6,6 +6,7 @@ from threading import Lock
 import time
 
 from starlette.responses import JSONResponse
+from starlette._utils import get_route_path
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
@@ -30,12 +31,14 @@ class PublicAPIMiddleware:
         rate_limit_requests: int,
         rate_limit_window_seconds: int,
         monotonic: Callable[[], float] = time.monotonic,
+        path_predicate: Callable[[str], bool] = is_public_api_path,
     ) -> None:
         self.app = app
         self.max_body_bytes = max_body_bytes
         self.rate_limit_requests = rate_limit_requests
         self.rate_limit_window_seconds = rate_limit_window_seconds
         self.monotonic = monotonic
+        self.path_predicate = path_predicate
         self._window_start: float | None = None
         self._request_count = 0
         # Test clients may call one app from independent threads/event loops.
@@ -53,7 +56,9 @@ class PublicAPIMiddleware:
             return None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not is_public_api_path(scope["path"]):
+        if scope["type"] != "http" or not (
+            self.path_predicate(scope["path"]) or self.path_predicate(get_route_path(scope))
+        ):
             await self.app(scope, receive, send)
             return
 

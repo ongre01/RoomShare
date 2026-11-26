@@ -11,7 +11,7 @@ flowchart TD
 사용자 호스트는 관리자 페이지/API를 차단한다. 관리자 호스트는 인증서 검증 성공 시에만 관리자 경로를 프록시한다. FastAPI는 loopback 또는 Unix socket으로만 바인딩하고 관리자 접근 신호는 신뢰된 Nginx가 덮어쓴 내부 헤더로 전달한다. 애플리케이션도 기본 거부하며 직접 접속을 금지한다.
 
 ## RS-001 초기 구현 경계
-`app.main.create_app(settings=...)`가 앱 팩토리이자 `uvicorn --factory` 진입점이다. 불변 `Settings`는 앱별 `app.state.settings`에 보관한다. import/앱 생성/lifespan은 DB 생성·접속 및 외부 연결 없이 동작한다. 설정 우선순위와 필드는 README를 따른다. 템플릿/정적 파일 및 상대 DB 경로는 소스 위치를 기준으로 해석한다. 현재 관리자 접근 설정은 `deny`만 지원하고 관리자 경로는 404다. 위 프록시 접근 신호·mTLS·Origin/CSRF 설계의 구현 및 검증은 RS-006/008에 남아 있다.
+`app.main.create_app(settings=...)`가 앱 팩토리이자 `uvicorn --factory` 진입점이다. 불변 `Settings`는 앱별 `app.state.settings`에 보관한다. import/앱 생성/lifespan은 DB 생성·접속 및 외부 연결 없이 동작한다. 설정 우선순위와 필드는 README를 따른다. 템플릿/정적 파일 및 상대 DB 경로는 소스 위치를 기준으로 해석한다. RS-001은 관리자 deny 및 미구현 404만 제공했다. 현재 기본 403과 명시적 프록시 모드는 아래 RS-006 계약을 따르며 실제 mTLS/프록시 검증은 RS-008에 남아 있다.
 
 ## UI
 사용자 `/`: 월 캘린더(가능/예약/불가/과거/선택), 선택 날짜 목록, 이름, 메모, 예약 버튼, 성공 화면 및 취소 토큰, 취소 폼. 모바일 우선; 상태는 색상 외 문자로 구분. 월을 넘겨 선택한 날짜도 유지. 실패 시 날짜 목록 갱신 및 안내.
@@ -84,7 +84,7 @@ HTTP와 독립된 동기 Python 서비스다. 호출자는 명시적으로 마�
 
 취소의 BEGIN IMMEDIATE 안에서 ID 조회, 제출 토큰 SHA-256 및 hmac.compare_digest(없는 ID도 dummy digest 비교), 상태/현재 KST 정책 검사, 점유 전체 삭제, CANCELLED·UTC cancelled_at 및 CANCEL 날짜 snapshot 로그를 수행한다. 이미 취소된 예약은 토큰 인증 후 추가 쓰기 없이 반환한다. 과거/당일 포함 및 점유 없는 비정상 예약은 거부한다. 현재 예약 기간 설정과 취소 가능 여부는 독립적이다. commit 실패도 결과 반환 전에 rollback한다. HTTP 매핑은 API 문서의 RS-004 표를 따른다.
 
-`PublicAPIMiddleware`는 공개 달력·예약 경로와 하위 변형에만 적용한다. 실제 body bytes를 제한한 뒤 재생하고, 앱 전체 고정 시간창 요청 수를 Lock으로 보호한다. 모든 public 응답에 no-store를 적용하며 예상외 오류는 일반화된 500으로 끝내고 원문 오류를 기록하지 않는다. 응답 시작 이후 실패는 민감 원문 없는 오류로 전파하며 두 번째 응답을 보내지 않는다. 동적 공개 응답은 streaming을 사용하지 않는다. URL 자동 slash redirect는 꺼져 있어 잘못된 공개 경로는 404다. 관리자 경로는 기존 미구현 404 유지다.
+`PublicAPIMiddleware`는 기본적으로 공개 달력·예약 경로와 하위 변형에 적용한다. 실제 body bytes를 제한한 뒤 재생하고, 앱 전체 고정 시간창 요청 수를 Lock으로 보호한다. 모든 public 응답에 no-store를 적용하며 예상외 오류는 일반화된 500으로 끝내고 원문 오류를 기록하지 않는다. 응답 시작 이후 실패는 민감 원문 없는 오류로 전파하며 두 번째 응답을 보내지 않는다. 동적 공개 응답은 streaming을 사용하지 않는다. URL 자동 slash redirect는 꺼져 있어 잘못된 공개 경로는 404다. RS-006은 별도 경로 판별기와 카운터를 넣어 관리자 경로에도 같은 제한 구현을 재사용한다.
 
 IP별 제한·전달 헤더 해석은 구현하지 않으며 IP 위조로 한도를 우회할 수 없다. 카운터는 프로세스마다 독립적이므로 단일 worker 운영과 프록시의 별도 제한/시간 제한이 필요하다. 요청 본문·토큰·결과 전체는 로깅하지 않는다. 앱/API 테스트는 실제 Nginx와 OCI 검증을 대신하지 않는다.
 
@@ -99,3 +99,24 @@ IP별 제한·전달 헤더 해석은 구현하지 않으며 IP 위조로 한도
 생성 성공에서만 ID·토큰을 readonly 입력에 한 번 표시한다. 사용자의 명시적 복사 동작만 클립보드에 쓰며 실패하면 수동 복사를 안내한다. 사용자가 보관 후 닫거나 페이지를 떠나면 값을 비우고, 새로고침/뒤로 가기로 복구하지 않는다. 성공 정보를 닫기 전에는 새 예약 버튼을 비활성화한다. 취소는 별도 ID/토큰 입력과 전체 취소 동의가 필요하며 성공 후 토큰 입력을 지운다. localStorage/sessionStorage/URL/콘솔/Cache Storage에는 기록하지 않는다. 이름/메모를 HTML로 삽입하지 않으며 동적 출력은 textContent/value와 DOM 생성만 사용한다.
 
 360px 우선 7열 달력, 상태별 문자, native button/label/checkbox, aria-pressed/aria-live, 명시적 포커스 표시와 본문 이동 링크를 제공한다. API/페이지 no-store와 pagehide 정리는 실기기 브라우저 검증을 대신하지 않는다. RS-005 자동화·실기기 결과는 해당 QA 보고서에서 분리한다.
+
+## RS-006 관리자 서비스와 보안
+
+`AdminMiddleware`가 raw ASGI path와 Starlette의 root_path 제거 후 route path를 모두 검사하여 `/admin`과 `/api/admin` namespace를 라우팅 전에 보호한다. 정확한 단일 Host, 검증된 관리자 컨텍스트, 변경 Origin/CSRF 순서로 확인한다. 비인증/CSRF 실패에서도 no-store를 적용하고 DB에 접근하지 않는다. Python 테스트의 resolver override는 Host/CSRF를 면제하지 않으며 HTTP/환경 설정에서 테스트 컨텍스트를 만들 수 없다. `proxy_mtls`의 실제 peer/신호/비밀 조건과 필수 서버 실행 옵션은 DEPLOYMENT를 따른다. 앱 생성은 기존대로 DB를 열지 않고 CSRF용 앱별 메모리 난수만 추가로 생성한다.
+
+관리자 라우터는 동기 서비스를 FastAPI worker thread에서 호출하고 `app/admin_schemas.py`의 strict 입력 및 명시적 응답 필드로 계약을 제한한다. 공개 예약 생성 서비스를 재사용하되 응답에서 취소 토큰을 즉시 제외한다. 관리자 예외 `AdminNotFoundError`/`AdminChangeNotAllowedError`는 각각 404/409다. 기존 공통 입력/충돌/일시 DB 오류와 no-store/제한/일반화된 500 구현을 재사용한다. 공개 경로의 응답 계약은 바꾸지 않는다.
+
+`app.services.admin`에 작은 관리자 서비스들을 모아 기존 단일 DB 모델과 읽기 snapshot/쓰기 연결 소유권을 유지한다. 새 DB 스키마나 의존성은 없다.
+
+| 함수 | 인자·반환 |
+|---|---|
+| list_reservations | `(db_path, month, *, status='CONFIRMED', busy_timeout_ms=5000)` → `{reservations:[전체 예약 필드/날짜]}` |
+| update_reservation | `(db_path, *, id, changes, clock=utc_now, busy_timeout_ms=5000)` → 전체 예약 객체 |
+| cancel_reservation | `(db_path, *, id, clock=utc_now, busy_timeout_ms=5000)` → `{id,status}`; 공개 취소와 별도 관리자 정책 |
+| block_dates / unblock_date | `(db_path, *, dates, memo='', clock=utc_now, busy_timeout_ms=5000)` / `(db_path, date, *, clock=utc_now, busy_timeout_ms=5000)` |
+| get_logs | `(db_path, *, page=1, page_size=50, busy_timeout_ms=5000)` → `{logs,page,page_size,total}` |
+| get_settings / update_settings | `(db_path, *, busy_timeout_ms=5000)` / `(db_path, *, booking_horizon_days, clock=utc_now, busy_timeout_ms=5000)` → `{booking_horizon_days}` |
+
+수정은 BEGIN IMMEDIATE 이후 기존 점유·상태·KST 현재 날짜를 읽고, 자기 점유를 제외한 신규 날짜의 기간·충돌을 확인한다. 기존 점유 전체 교체·정보 변경·이력을 동일 연결에 수행하며 날짜 PK가 최종 방어다. 변경 없는 PATCH는 쓰기 이력을 추가하지 않는다. 취소/차단/해제/설정도 로그와 같은 거래에서 처리하고 commit 이후에만 결과를 반환한다. 기간 축소는 기존 날짜를 삭제하지 않는다. 과거 포함 예약의 모든 수정/취소와 과거 차단 해제를 임시 거부하고 당일 관리자 변경은 허용한다.
+
+월 조회는 읽기 snapshot에서 예약 전체 날짜를 가져오고 취소된 예약은 CANCEL/ADMIN_CANCEL의 before snapshot으로 복원한다. 이력 조회는 created_at DESC, id DESC와 상한 있는 offset 페이지를 사용한다. 로그의 날짜 배열·설정 정수만 투영해 저장된 임의 필드를 전달하지 않으며 이름/메모/토큰을 이력에 복제하지 않는다. 자동 이력 삭제는 추가하지 않는다. 상세 HTTP·미확정 수치는 API, 실제 실행 증거와 외부 미검증은 RS-006 보고서를 따른다.

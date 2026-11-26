@@ -79,8 +79,10 @@ def test_tc001_07_initial_admin_routes_are_unavailable(client, path, host):
         path,
         headers={"host": host, "x-admin-access": "allow", "x-ssl-client-verify": "SUCCESS"},
     )
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Not Found"}
+    # RS-006 protects the entire namespace before routing, including unknown paths.
+    assert response.status_code == 403
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["code"] == "ADMIN_FORBIDDEN"
 
 
 class PageMetadata(HTMLParser):

@@ -12,6 +12,8 @@ from app.api_errors import install_error_handlers
 from app.db import DEFAULT_BUSY_TIMEOUT_MS
 from app.middleware import PublicAPIMiddleware
 from app.routers.public import router as public_router
+from app.routers.admin import router as admin_router
+from app.security import AdminMiddleware, initialize_admin_security
 from app.services.date_policy import Clock, KST, utc_now
 
 
@@ -32,6 +34,7 @@ def create_app(
     app.state.settings = settings
     app.state.clock = clock
     app.state.busy_timeout_ms = busy_timeout_ms
+    initialize_admin_security(app)
     install_error_handlers(app)
     app.add_middleware(
         PublicAPIMiddleware,
@@ -40,6 +43,8 @@ def create_app(
         rate_limit_window_seconds=settings.rate_limit_window_seconds,
     )
     app.include_router(public_router)
+    app.add_middleware(AdminMiddleware, settings=settings)
+    app.include_router(admin_router)
     templates = Jinja2Templates(directory=APP_DIR / "templates")
     app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 

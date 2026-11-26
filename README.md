@@ -1,5 +1,5 @@
 # RoomShare — AI Agent Starter
-개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스, RS-005는 사용자 모바일 예약 화면을 제공한다. 관리자 기능·운영 배포는 후속 티켓 범위다.
+개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스, RS-005는 사용자 모바일 예약 화면, RS-006은 보호된 관리자 API를 제공한다. 관리자 화면·운영 배포는 후속 티켓 범위다.
 
 ## 로컬 설치 및 실행 (RS-001)
 
@@ -31,15 +31,16 @@ python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --n
 | `admin_host` | `ROOMSHARE_ADMIN_HOST` | `admin-room.example.com` |
 | `booking_horizon_days` | `ROOMSHARE_BOOKING_HORIZON_DAYS` | `90` (임시 정책) |
 | `admin_access` | `ROOMSHARE_ADMIN_ACCESS` | `deny` |
+| `admin_proxy_secret` | `ROOMSHARE_ADMIN_PROXY_SECRET` | 미설정 (`proxy_mtls` 모드에서 필수) |
 | `max_body_bytes` | `ROOMSHARE_MAX_BODY_BYTES` | `16384` (임시 제한) |
-| `rate_limit_requests` | `ROOMSHARE_RATE_LIMIT_REQUESTS` | `120` (앱 전체, 임시 제한) |
+| `rate_limit_requests` | `ROOMSHARE_RATE_LIMIT_REQUESTS` | `120` (공개/관리자별, 임시 제한) |
 | `rate_limit_window_seconds` | `ROOMSHARE_RATE_LIMIT_WINDOW_SECONDS` | `60` (임시 제한) |
 
 환경 변수 이름은 기존 `.env.example`의 `ROOMSHARE_` 접두사를 유지한다. 프로세스 환경 변수 > 소스 저장소 루트의 선택적 `.env` > 기본값 순서다. `.env`는 자동 생성하지 않으며 필요하면 `.env.example`을 참고해 로컬에서 작성한다. 빈 값은 기본값으로 대체하지 않고 오류로 거부한다. 닫히지 않은 따옴표 등 dotenv 문법 오류는 시작 오류로 거부한다. 고정된 python-dotenv 파서로 변수 보간은 끄며, 로더가 `os.environ`을 변경하거나 값을 캐시하지 않는다. `load_settings(env_file=경로, environ=매핑)`으로 테스트 소스를 지정할 수 있고, `env_file=None`은 파일 로딩을 끈다. 지정한 매핑은 프로세스 환경 대신 사용한다. 없는 dotenv 파일은 기본값/환경 변수로 진행한다.
 
-상대 DB 경로는 cwd가 아닌 소스 저장소 루트를 기준으로 절대 경로로 정규화한다. 빈 경로, NUL/제어 문자 및 기존 디렉터리는 거부한다. 호스트는 스킴·포트·경로 없는 ASCII 호스트명이고 공백 제거, 소문자화, 마지막 점 하나 제거 후 검증한다. 정규화 후 두 호스트가 같으면 오류다. 기간은 양의 정수 또는 숫자 문자열만 허용하며 bool/실수/빈 값은 거부한다. timezone은 `Asia/Seoul`, 접근 모드는 `deny`만 지원한다. 잘못된 설정은 값 자체를 노출하지 않는 `SettingsError`로 서버 시작을 실패시킨다.
+상대 DB 경로는 cwd가 아닌 소스 저장소 루트를 기준으로 절대 경로로 정규화한다. 빈 경로, NUL/제어 문자 및 기존 디렉터리는 거부한다. 호스트는 스킴·포트·경로 없는 ASCII 호스트명이고 공백 제거, 소문자화, 마지막 점 하나 제거 후 검증한다. 정규화 후 두 호스트가 같으면 오류다. 기간은 양의 정수 또는 숫자 문자열만 허용하며 bool/실수/빈 값은 거부한다. timezone은 `Asia/Seoul`, 관리자 접근 모드는 `deny` 또는 `proxy_mtls`다. 잘못된 설정은 값 자체를 노출하지 않는 `SettingsError`로 서버 시작을 실패시킨다.
 
-관리자 `/admin`, `/api/admin` 및 하위 기능은 미구현 404다. 별도 호스트나 전달 헤더로 접근을 허용하는 개발용 우회는 없다. 실제 프록시 신뢰·mTLS·Origin/CSRF 검증은 RS-006/008에서 구현·검증해야 한다. 자동 API 문서 경로도 비활성화한다. 템플릿/정적 경로는 소스 위치 기준이며 Jinja HTML 자동 이스케이프와 모바일 viewport를 사용한다.
+관리자 `/admin`, `/api/admin` 및 하위 경로는 기본 403이다. RS-006의 명시적 `proxy_mtls` 모드는 정확한 관리자 Host, loopback 실제 연결, 프록시 mTLS 검증 신호, 내부 공유 비밀을 모두 요구한다. 변경 요청은 HTTPS Origin과 CSRF도 검증한다. 테스트용 인증 주입은 Python 테스트 코드에만 있으며 환경 설정 우회는 없다. 실제 Nginx/mTLS/외부 접근 검증은 RS-008에 남는다. 자동 API 문서 경로도 비활성화한다. 템플릿/정적 경로는 소스 위치 기준이며 Jinja HTML 자동 이스케이프와 모바일 viewport를 사용한다.
 
 ## 테스트와 lock 갱신
 
@@ -51,6 +52,7 @@ python -m pytest -q tests/test_db.py tests/test_migrations.py
 python -m pytest -q tests/test_reservation_service.py tests/test_concurrency.py
 python -m pytest -q tests/test_public_api.py tests/test_cancellation.py tests/test_public_limits.py
 python -m pytest -q tests/test_public_page.py tests/e2e/test_public_ui.py
+python -m pytest -q tests/test_admin_access.py tests/test_admin_api.py tests/test_admin_service.py
 python -m pytest -q
 python3 scripts/verify_bootstrap.py
 git diff --check
@@ -116,6 +118,14 @@ python scripts/migrate.py --db-path "$rs002_tmp_dir/roomshare.db" --check
 Playwright Python은 개발 lock에만 포함되며 앱 운영에는 Node나 브라우저가 필요하지 않다. E2E는 케이스별 실제 임시 SQLite·loopback HTTP·고정 clock·Chromium을 사용한다. 기본 전체 pytest에도 포함되며 브라우저가 없으면 skip으로 숨기지 않고 실패한다. 최소 Linux 이미지에서는 브라우저 실행 오류가 알려주는 시스템 라이브러리를 별도로 준비해야 한다. `python -m playwright install-deps chromium`은 시스템 패키지를 설치하는 개발 환경 준비 명령이며 권한이 필요하다. 운영 서버에서 실행하지 않는다.
 
 선택적으로 WebKit을 준비한 환경에서는 `python -m playwright install webkit` 후 `python -m pytest -q tests/e2e/test_public_ui.py --browser-engine=webkit`로 별도 실행한다. WebKit/Chromium 자동화는 실제 iPhone Safari/Android Chrome을 대체하지 않는다. 실제 장치 절차와 현재 미실행 상태는 [수동 체크리스트](tests/manual/public-ui.md), 케이스별 결과는 [RS-005 보고서](qa/reports/RS-005.md)를 따른다.
+
+## 관리자 접근 제어 및 API (RS-006)
+
+기본 `ROOMSHARE_ADMIN_ACCESS=deny`를 유지한다. 보호된 프록시 운영 준비 시에만 `proxy_mtls`와 별도 `ROOMSHARE_ADMIN_PROXY_SECRET`을 설정한다. 비밀은 CSPRNG 32바이트 이상의 URL-safe 문자열(43~128자)이며 Git·로그·브라우저에 넣지 않는다. 실제 서버에서는 [프록시 신뢰 계약](docs/DEPLOYMENT.md)에 따라 Uvicorn의 `--no-proxy-headers`, loopback bind, Nginx 헤더 덮어쓰기 및 mTLS를 함께 검증해야 한다. 설정만으로 배포 검증이 완료되지 않는다.
+
+인증된 관리자는 `GET /api/admin/csrf`의 토큰을 메모리에 보관하고 모든 POST/PATCH/DELETE에 `Origin: https://<admin_host>`와 `X-CSRF-Token`으로 보낸다. 30분 만료·앱 재시작 후 재발급한다. 예약 조회/생성/부분 수정/취소, 일괄 차단/해제, 로그 페이지와 예약 기간 설정 API는 [API 계약](docs/API.md)을 따른다. 관리자 생성에서는 취소 토큰을 반환하지 않는다. `/admin` 화면은 RS-007 범위로 아직 없으며 유효한 컨텍스트에도 404다.
+
+과거 날짜 포함 예약의 모든 수정·취소와 과거 차단 해제는 임시로 금지한다. 오늘은 관리자 변경을 허용한다. 기간 축소는 기존 점유를 보존하고, PATCH 생략 날짜도 유지한다. 관리자 기간 변경 상한 366일·로그 기본 50/최대 100건은 승인 전 임시값이다. 추가 의존성·마이그레이션 없이 기존 SQLite 트랜잭션과 공개 생성 서비스를 재사용한다. 케이스별 검증은 [RS-006 보고서](qa/reports/RS-006.md)를 따른다.
 
 ## 시작 순서
 1. 저장소 루트에서 Agent를 시작한다. `AGENTS.md`와 `prompts/COMMON.md`의 필수 문서 로딩 절차를 따른다. Claude Code용 진입점은 `CLAUDE.md`다.

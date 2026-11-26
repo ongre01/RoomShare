@@ -7,7 +7,7 @@
 | [RS-003](RS-003.md) | 예약 엔진 및 충돌 방지 | P0 | RS-002 | DONE |
 | [RS-004](RS-004.md) | 사용자 예약 API 및 취소 | P0 | RS-003 | DONE |
 | [RS-005](RS-005.md) | 사용자 모바일 웹 | P0 | RS-004 | DONE |
-| [RS-006](RS-006.md) | 관리자 접근 제어 및 API | P0 | RS-003 | TODO |
+| [RS-006](RS-006.md) | 관리자 접근 제어 및 API | P0 | RS-003 | DONE |
 | [RS-007](RS-007.md) | 관리자 모바일 웹 | P0 | RS-006 | TODO |
 | [RS-008](RS-008.md) | OCI 배포 및 백업 | P0 | RS-005,RS-007 | TODO |
 | [RS-009](RS-009.md) | 통합 테스트 및 릴리스 | P0 | RS-008 | TODO |
@@ -55,3 +55,6 @@ RS-004/005와 RS-006/007은 RS-003 이후 독립 진행 가능. RS-008에서 통
 
 ## RS-005 검증 증거
 2026-11-26: 로컬 TC 12 PASS, 실기기 TC-005-13 NOT RUN. 대상 pytest 29 PASS, fixture 격리 수정 및 키보드 보강 후 E2E+기존 제한 76 PASS, 깨끗한 런타임/개발 venv 및 전체 pytest 482 PASS(실패·skip 0). 실제 Chromium 360/390/1280px, 복수 월 예약·충돌·취소·응답 역전·토큰 비저장 검증 PASS. [완료 보고서](../qa/reports/RS-005.md). 필수 로컬 완료 조건에 따라 DONE이며 실기기/추가 WebKit/OCI 검증과 전체 공개 릴리스는 별도 미완료. 후속 티켓 미착수.
+
+## RS-006 검증 증거
+2026-11-26: 필수 로컬 TC15/15 PASS, 대상506 PASS(보안271/API139/서비스96), 전체 pytest988 PASS(실패·skip0). 관리자 기본 차단·proxy/host/Origin/CSRF, 전체 관리 API, 수정/차단/설정 rollback·날짜 PK·독립 예약/차단 경쟁20회·개인정보 보호 검증 PASS. [완료 보고서](../qa/reports/RS-006.md). 실제 Nginx/mTLS/외부 헤더 위조/OCI는 NOT RUN으로 RS-008/009에 인계하며 공개 릴리스는 미완료. 후속 티켓 미착수.

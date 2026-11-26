@@ -1,7 +1,7 @@
 """Validated, immutable settings without process-global mutation or DB access."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 import re
@@ -36,6 +36,7 @@ class Settings:
     admin_host: str = "admin-room.example.com"
     booking_horizon_days: int = 90
     admin_access: str = "deny"
+    admin_proxy_secret: str | None = field(default=None, repr=False)
     max_body_bytes: int = 16384
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
@@ -64,8 +65,16 @@ class Settings:
 
         if self.timezone != "Asia/Seoul":
             raise SettingsError("ROOMSHARE_TIMEZONE: only Asia/Seoul is supported")
-        if self.admin_access != "deny":
-            raise SettingsError("ROOMSHARE_ADMIN_ACCESS: only deny is supported")
+        if self.admin_access not in ("deny", "proxy_mtls"):
+            raise SettingsError("ROOMSHARE_ADMIN_ACCESS: expected deny or proxy_mtls")
+        secret = self.admin_proxy_secret
+        if secret is not None and (
+            not isinstance(secret, str)
+            or re.fullmatch(r"[A-Za-z0-9_-]{43,128}", secret, re.ASCII) is None
+        ):
+            raise SettingsError("ROOMSHARE_ADMIN_PROXY_SECRET: expected a URL-safe secret of 43 to 128 characters")
+        if self.admin_access == "proxy_mtls" and secret is None:
+            raise SettingsError("ROOMSHARE_ADMIN_PROXY_SECRET: required for proxy_mtls")
 
         horizon = self.booking_horizon_days
         if isinstance(horizon, str) and re.fullmatch(r"[0-9]+", horizon.strip()):
