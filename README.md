@@ -1,5 +1,5 @@
 # RoomShare — AI Agent Starter
-개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 실행 가능한 최소 FastAPI 앱과 로컬 개발 환경을 제공한다. 예약 기능 및 운영 배포는 아직 구현하지 않았다.
+개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 스키마·명시적 마이그레이션·쓰기 트랜잭션 기반을 제공한다. 예약 기능 및 운영 배포는 아직 구현하지 않았다.
 
 ## 로컬 설치 및 실행 (RS-001)
 
@@ -20,7 +20,7 @@ python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
 
 ## 설정과 앱 계약
 
-`app.main.create_app(settings=...)`에 `app.config.Settings` 객체를 주입할 수 있다. 생략하면 `load_settings()`를 호출한다. 주입된 설정은 `app.state.settings`에서 읽고, 변경할 수 없는 객체로 앱별 보관한다. `app.main:create_app --factory`가 ASGI 진입점이다. 모듈 import, 앱 생성 및 lifespan은 모두 DB/디렉터리 생성이나 외부 연결을 수행하지 않는다. 실제 DB 연결·마이그레이션은 RS-002 범위다.
+`app.main.create_app(settings=...)`에 `app.config.Settings` 객체를 주입할 수 있다. 생략하면 `load_settings()`를 호출한다. 주입된 설정은 `app.state.settings`에서 읽고, 변경할 수 없는 객체로 앱별 보관한다. `app.main:create_app --factory`가 ASGI 진입점이다. 모듈 import, 앱 생성 및 lifespan은 모두 DB/디렉터리 생성이나 외부 연결을 수행하지 않는다. DB 준비는 아래 RS-002 명령으로 별도 실행한다.
 
 | Settings 필드 | 환경 변수 | 기본값 |
 |---|---|---|
@@ -39,10 +39,11 @@ python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
 
 ## 테스트와 lock 갱신
 
-`tests/conftest.py`의 임시 설정·앱·client fixture는 실제 서비스 DB를 사용하지 않는다. RS-001은 DB 파일이 생기지 않는 것을 검증하며, 마이그레이션된 DB fixture는 RS-002에서 추가한다. 대상 테스트와 전체 회귀 명령은 다음과 같다.
+`tests/conftest.py`의 임시 설정·앱·client fixture는 실제 서비스 DB를 사용하지 않는다. RS-001은 DB 파일이 생기지 않는 것을 검증한다. RS-002의 선택적 `migrated_db` fixture만 실제 임시 파일 DB를 생성·마이그레이션하며 기존 bootstrap fixture는 그대로 유지한다. 대상 테스트와 전체 회귀 명령은 다음과 같다.
 
 ```bash
 python -m pytest -q tests/test_config.py tests/test_health.py
+python -m pytest -q tests/test_db.py tests/test_migrations.py
 python -m pytest -q
 python3 scripts/verify_bootstrap.py
 git diff --check
@@ -66,6 +67,23 @@ deactivate
 ```
 
 해당 임시 경로가 이미 있으면 새 경로를 선택한다. 설치/호환성 테스트 및 깨끗한 venv 검증을 모두 통과한 lock만 커밋한다.
+
+## DB 초기화·검증 (RS-002)
+
+가상환경 활성화 후 저장소 루트에서 실행한다. 실제 서비스 DB 대신 아래처럼 별도 임시 디렉터리로 먼저 검증할 수 있다. SQLite는 Python 표준 라이브러리만 사용하며 추가 의존성은 없다.
+
+```bash
+rs002_tmp_dir=$(mktemp -d)
+python scripts/migrate.py --db-path "$rs002_tmp_dir/roomshare.db"
+python scripts/migrate.py --db-path "$rs002_tmp_dir/roomshare.db"
+python scripts/migrate.py --db-path "$rs002_tmp_dir/roomshare.db" --check
+```
+
+첫 실행은 `applied: 1`, 재실행은 `up to date`, 검증은 `schema: 1; integrity: ok; foreign keys: ok`를 출력한다. 테스트 DB가 필요 없어지면 생성된 임시 디렉터리를 정리한다. `--check`는 기존 파일을 읽기 전용으로 검사하며 없는 DB를 생성하지 않는다. 실패 시 종료 코드 1이며 SQL/데이터/경로는 출력하지 않는다.
+
+운영자가 대상 경로와 백업을 확인한 뒤 실행할 초기화 명령은 `python scripts/migrate.py`, 검증은 `python scripts/migrate.py --check`다. `--db-path` 생략 시 `load_settings()`의 `ROOMSHARE_DB_PATH`를 사용한다. 명시적 경로도 기존 Settings 규칙에 따라 상대 경로는 소스 루트 기준이다. CLI는 마이그레이션 때만 상위 디렉터리를 만들며 앱 기동은 DB를 초기화하지 않는다. 삭제·다운그레이드·자동 재시도는 제공하지 않는다.
+
+초기 `booking_horizon_days`는 실행 당시 Settings 값(환경 변수 > 선택적 .env > 기본 90)을 DB에 한 번 저장한다. 이후 DB 값이 운영 설정의 기준이며 재실행 시 환경 값을 바꾸어도 DB 값을 덮어쓰지 않는다. DB 연결/트랜잭션 소유권, 오류 및 다음 티켓 계약은 [DESIGN](docs/DESIGN.md)의 RS-002 절, 실제 검증은 [RS-002 보고서](qa/reports/RS-002.md)를 따른다.
 
 ## 시작 순서
 1. 저장소 루트에서 Agent를 시작한다. `AGENTS.md`와 `prompts/COMMON.md`의 필수 문서 로딩 절차를 따른다. Claude Code용 진입점은 `CLAUDE.md`다.

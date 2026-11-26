@@ -1,4 +1,4 @@
-"""RS-001 fixtures; RS-002 will add real migrations to the isolated DB path."""
+"""Isolated bootstrap fixtures and opt-in, real-file migrated databases."""
 
 import os
 from pathlib import Path
@@ -31,7 +31,7 @@ def isolated_environment(monkeypatch, tmp_path):
 
 @pytest.fixture
 def db_path(tmp_path) -> Path:
-    # Intentionally not created until the RS-002 migration fixture exists.
+    # Bootstrap tests still need a path that has never been opened.
     return tmp_path / "database" / "test.db"
 
 
@@ -42,6 +42,14 @@ def settings(db_path):
         public_host="public.test",
         admin_host="admin.test",
     )
+
+
+@pytest.fixture
+def migrated_db(settings) -> Path:
+    from app.migrations import migrate
+
+    migrate(settings.db_path, booking_horizon_days=settings.booking_horizon_days)
+    return settings.db_path
 
 
 @pytest.fixture

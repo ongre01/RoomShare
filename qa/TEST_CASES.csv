@@ -9,17 +9,17 @@ TC-001-07,RS-001,NFR-02,api,local,초기 관리자 경로,"기본 deny, 일반 �
 TC-001-08,RS-001,NFR-01,integration,local,작업 경로 독립성,프로젝트 밖 임시 cwd,앱 시작 후 템플릿/정적 파일 요청,절대 경로 하드코딩 없이 정상 렌더링; viewport 확인,PASS,tests/test_health.py::test_tc001_08_*,qa/reports/RS-001.md,2026-11-26 local; 전체 66 passed; 깨끗한 venv/HTTP 검증 포함
 TC-001-09,RS-001,NFR-03,deploy,local,깨끗한 venv,"지원 Python, 새 임시 venv","lock 설치, pip check, pytest 및 loopback uvicorn 시작, healthz 호출","설치 및 시작 성공, 종료 후 프로세스 정리; 버전/명령 기록",PASS,scripts/verify_bootstrap.py,qa/reports/RS-001.md,2026-11-26 local; 전체 66 passed; 깨끗한 venv/HTTP 검증 포함
 TC-001-10,RS-001,NFR-03,integration,local,테스트 격리,두 앱에 다른 임시 설정 주입,앱 fixture 연속 생성 및 종료,서로의 설정/파일/환경 변수를 공유하지 않음,PASS,tests/test_health.py::test_tc001_10_*,qa/reports/RS-001.md,2026-11-26 local; 전체 66 passed; 깨끗한 venv/HTTP 검증 포함
-TC-002-01,RS-002,FR-09,db,local,초기 마이그레이션,빈 파일 경로,"migration 실행, sqlite_master/PRAGMA 확인","정의된 5개 테이블, 인덱스/제약 및 적용 버전 존재",NOT RUN,,,
-TC-002-02,RS-002,NFR-03,db,local,재실행 보존,초기화 후 예약/설정 샘플 삽입,migration 두 번 더 실행,레코드와 적용 버전 불변; 중복 버전 없음,NOT RUN,,,
-TC-002-03,RS-002,NFR-03,db,local,업그레이드 원자성,"이전 스키마와 테스트 데이터, 중간에 실패하는 테스트 migration",migration 실행 후 다시 연결,"실패 버전 미기록, 부분 DDL/DML 없음, 기존 레코드 보존",NOT RUN,,,
-TC-002-04,RS-002,"FR-09,NFR-04",db,local,날짜 PK 중복,RESERVED 날짜 1개,같은 날짜 RESERVED 및 BLOCKED 직접 삽입 시도,"모두 IntegrityError, 기존 행 유지",NOT RUN,,,
-TC-002-05,RS-002,FR-09,db,local,FK 및 타입 CHECK,"존재하지 않는 UUID; RESERVED+NULL, BLOCKED+UUID, UNKNOWN",각 insert를 독립 트랜잭션에서 시도,모두 거부; 올바른 조합만 허용,NOT RUN,,,
-TC-002-06,RS-002,FR-09,db,local,예약 상태 CHECK,INVALID 상태 및 정상 CONFIRMED/CANCELLED,직접 insert 및 update,"INVALID 거부, 정상 상태 허용",NOT RUN,,,
-TC-002-07,RS-002,NFR-03,db,local,연결별 PRAGMA,"같은 임시 파일 DB, 독립 연결 2개",foreign_keys/journal_mode/busy_timeout 조회,"각 연결 foreign_keys=1, 설정한 timeout, WAL 파일 DB 확인",NOT RUN,,,
-TC-002-08,RS-002,FR-09,db,local,예외 롤백,"빈 DB, transaction helper",예약 삽입 후 의도적 예외,새 연결에서 예약/점유/이력 0건; 잠금 해제,NOT RUN,,,
-TC-002-09,RS-002,NFR-04,db,local,writer 경합,"연결 A가 BEGIN IMMEDIATE 보유, B의 timeout 짧게 설정","B에서 쓰기 시도, A rollback 후 재시도","정해진 busy 오류, A 해제 후 성공, 무한 대기 없음",NOT RUN,,,
-TC-002-10,RS-002,NFR-03,db,local,무결성 및 연결 정리,정상/예외 흐름을 여러 번 실행,"integrity_check, foreign_key_check, 파일 핸들/재연결 확인","ok, FK 위반 0, 정상 종료 및 다음 쓰기 가능",NOT RUN,,,
-TC-002-11,RS-002,NFR-03,db,local,설정 초기값 보존,초기 booking_horizon_days 설정 후 관리자가 변경했다고 가정,재마이그레이션,사용자 변경 값을 기본값으로 덮어쓰지 않음,NOT RUN,,,
+TC-002-01,RS-002,FR-09,db,local,초기 마이그레이션,빈 파일 경로,"migration 실행, sqlite_master/PRAGMA 확인","정의된 5개 테이블, 인덱스/제약 및 적용 버전 존재",PASS,tests/test_migrations.py::test_tc002_01_*; tests/test_db.py::test_tc002_01_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-02,RS-002,NFR-03,db,local,재실행 보존,초기화 후 예약/설정 샘플 삽입,migration 두 번 더 실행,레코드와 적용 버전 불변; 중복 버전 없음,PASS,tests/test_migrations.py::test_tc002_02_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-03,RS-002,NFR-03,db,local,업그레이드 원자성,"이전 스키마와 테스트 데이터, 중간에 실패하는 테스트 migration",migration 실행 후 다시 연결,"실패 버전 미기록, 부분 DDL/DML 없음, 기존 레코드 보존",PASS,tests/test_migrations.py::test_tc002_03_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-04,RS-002,"FR-09,NFR-04",db,local,날짜 PK 중복,RESERVED 날짜 1개,같은 날짜 RESERVED 및 BLOCKED 직접 삽입 시도,"모두 IntegrityError, 기존 행 유지",PASS,tests/test_db.py::test_tc002_04_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-05,RS-002,FR-09,db,local,FK 및 타입 CHECK,"존재하지 않는 UUID; RESERVED+NULL, BLOCKED+UUID, UNKNOWN",각 insert를 독립 트랜잭션에서 시도,모두 거부; 올바른 조합만 허용,PASS,tests/test_db.py::test_tc002_05_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-06,RS-002,FR-09,db,local,예약 상태 CHECK,INVALID 상태 및 정상 CONFIRMED/CANCELLED,직접 insert 및 update,"INVALID 거부, 정상 상태 허용",PASS,tests/test_db.py::test_tc002_06_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-07,RS-002,NFR-03,db,local,연결별 PRAGMA,"같은 임시 파일 DB, 독립 연결 2개",foreign_keys/journal_mode/busy_timeout 조회,"각 연결 foreign_keys=1, 설정한 timeout, WAL 파일 DB 확인",PASS,tests/test_db.py::test_tc002_07_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-08,RS-002,FR-09,db,local,예외 롤백,"빈 DB, transaction helper",예약 삽입 후 의도적 예외,새 연결에서 예약/점유/이력 0건; 잠금 해제,PASS,tests/test_db.py::test_tc002_08_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-09,RS-002,NFR-04,db,local,writer 경합,"연결 A가 BEGIN IMMEDIATE 보유, B의 timeout 짧게 설정","B에서 쓰기 시도, A rollback 후 재시도","정해진 busy 오류, A 해제 후 성공, 무한 대기 없음",PASS,tests/test_db.py::test_tc002_09_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-10,RS-002,NFR-03,db,local,무결성 및 연결 정리,정상/예외 흐름을 여러 번 실행,"integrity_check, foreign_key_check, 파일 핸들/재연결 확인","ok, FK 위반 0, 정상 종료 및 다음 쓰기 가능",PASS,tests/test_migrations.py::test_tc002_10_*; tests/test_db.py::test_tc002_10_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
+TC-002-11,RS-002,NFR-03,db,local,설정 초기값 보존,초기 booking_horizon_days 설정 후 관리자가 변경했다고 가정,재마이그레이션,사용자 변경 값을 기본값으로 덮어쓰지 않음,PASS,tests/test_migrations.py::test_tc002_11_*,qa/reports/RS-002.md,2026-11-26 local; 대상 82 passed; 전체 148 passed; 실제 임시 SQLite 검증
 TC-003-01,RS-003,"FR-02,FR-09",unit,local,예약 날짜 경계,"today=2026-12-01, N=90, 입력 11/30,12/01,2027-02-28,03/01",날짜 정책 검증,12/01~02/28만 허용; 나머지 거부,NOT RUN,,,
 TC-003-02,RS-003,FR-09,unit,local,KST 자정,UTC 2026-11-30 14:59:59와 15:00:00,clock 주입하여 today와 범위 계산,KST 11/30 및 12/01로 변경; 시스템 TZ 무관,NOT RUN,,,
 TC-003-03,RS-003,FR-09,unit,local,정확한 날짜 파싱,"2028-02-29,2027-02-29,2026-02-30,2026-1-01,2026-12-01T00:00:00",각 파서 입력,"윤년 유효 날짜만 허용, 비정규 형식/실재하지 않는 날짜 거부",NOT RUN,,,
