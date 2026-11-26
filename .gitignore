@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.env
+*.db
+*.db-*
+*.sqlite*
+*.pem
+*.key
+*.p12
+backups/
+coverage.xml
