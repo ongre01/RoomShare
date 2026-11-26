@@ -1,5 +1,5 @@
 # RoomShare — AI Agent Starter
-개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 HTTP와 분리된 예약 생성·달력 서비스를 제공한다. 예약 HTTP API·사용자 화면·운영 배포는 후속 티켓 범위다.
+개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스를 제공한다. 사용자 화면·관리자 기능·운영 배포는 후속 티켓 범위다.
 
 ## 로컬 설치 및 실행 (RS-001)
 
@@ -13,7 +13,7 @@ python -m pip install -r requirements-dev.lock
 python -m pip check
 python -m pytest --collect-only -q
 python -m pytest -q
-python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
 다른 터미널에서 `curl --fail http://127.0.0.1:8000/healthz`는 정확히 `{"status":"ok"}`를 반환한다. `/`에는 준비 화면만 있다. 서버는 Ctrl+C로 종료한다. 외부 인터페이스 바인딩 및 공개 배포는 이 절차에 포함되지 않는다. 런타임만 설치할 경우 새 venv에 `python -m pip install -r requirements.lock`을 사용한다. 운영 lock에는 pytest/HTTPX가 없다.
@@ -30,6 +30,9 @@ python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
 | `admin_host` | `ROOMSHARE_ADMIN_HOST` | `admin-room.example.com` |
 | `booking_horizon_days` | `ROOMSHARE_BOOKING_HORIZON_DAYS` | `90` (임시 정책) |
 | `admin_access` | `ROOMSHARE_ADMIN_ACCESS` | `deny` |
+| `max_body_bytes` | `ROOMSHARE_MAX_BODY_BYTES` | `16384` (임시 제한) |
+| `rate_limit_requests` | `ROOMSHARE_RATE_LIMIT_REQUESTS` | `120` (앱 전체, 임시 제한) |
+| `rate_limit_window_seconds` | `ROOMSHARE_RATE_LIMIT_WINDOW_SECONDS` | `60` (임시 제한) |
 
 환경 변수 이름은 기존 `.env.example`의 `ROOMSHARE_` 접두사를 유지한다. 프로세스 환경 변수 > 소스 저장소 루트의 선택적 `.env` > 기본값 순서다. `.env`는 자동 생성하지 않으며 필요하면 `.env.example`을 참고해 로컬에서 작성한다. 빈 값은 기본값으로 대체하지 않고 오류로 거부한다. 닫히지 않은 따옴표 등 dotenv 문법 오류는 시작 오류로 거부한다. 고정된 python-dotenv 파서로 변수 보간은 끄며, 로더가 `os.environ`을 변경하거나 값을 캐시하지 않는다. `load_settings(env_file=경로, environ=매핑)`으로 테스트 소스를 지정할 수 있고, `env_file=None`은 파일 로딩을 끈다. 지정한 매핑은 프로세스 환경 대신 사용한다. 없는 dotenv 파일은 기본값/환경 변수로 진행한다.
 
@@ -45,6 +48,7 @@ python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
 python -m pytest -q tests/test_config.py tests/test_health.py
 python -m pytest -q tests/test_db.py tests/test_migrations.py
 python -m pytest -q tests/test_reservation_service.py tests/test_concurrency.py
+python -m pytest -q tests/test_public_api.py tests/test_cancellation.py tests/test_public_limits.py
 python -m pytest -q
 python3 scripts/verify_bootstrap.py
 git diff --check
@@ -90,7 +94,15 @@ python scripts/migrate.py --db-path "$rs002_tmp_dir/roomshare.db" --check
 
 명시적으로 마이그레이션한 DB 경로에 `app.services.reservations.create_reservation(db_path, name=..., dates=[...], memo="")`와 `app.services.calendar.get_calendar(db_path, "YYYY-MM")`를 호출한다. 생성은 예약 UUID·정렬 날짜·CONFIRMED·취소 토큰을 반환한다. 토큰 평문은 생성 결과에만 있으며 결과 전체를 로그에 출력하지 않는다. 달력은 날짜별 상태와 KST 오늘/예약 범위만 반환한다.
 
-각 호출은 `clock` 함수와 `busy_timeout_ms`를 주입할 수 있다. clock은 timezone-aware datetime을 반환하며 테스트에서는 고정 UTC 시각을 사용한다. 예약 가능 기간은 DB에서 매번 읽고, 생성에서는 BEGIN IMMEDIATE 이후 정책과 충돌을 검증한다. 일부 날짜 충돌이나 이력 쓰기 실패도 예약·점유·이력 전체를 롤백한다. 서비스 시그니처, 도메인 예외, 재사용 helper 및 후속 HTTP 매핑은 [DESIGN](docs/DESIGN.md)의 RS-003 계약과 [API](docs/API.md)를 따른다. 취소 동작과 HTTP 경로는 아직 제공하지 않는다.
+각 호출은 `clock` 함수와 `busy_timeout_ms`를 주입할 수 있다. clock은 timezone-aware datetime을 반환하며 테스트에서는 고정 UTC 시각을 사용한다. 예약 가능 기간은 DB에서 매번 읽고, 생성에서는 BEGIN IMMEDIATE 이후 정책과 충돌을 검증한다. 일부 날짜 충돌이나 이력 쓰기 실패도 예약·점유·이력 전체를 롤백한다. 서비스 시그니처, 도메인 예외, 재사용 helper 및 후속 HTTP 매핑은 [DESIGN](docs/DESIGN.md)의 RS-003 계약과 [API](docs/API.md)를 따른다. 취소 동작과 HTTP 경로는 아래 RS-004 계약을 따른다.
+
+## 공개 API 및 취소 (RS-004)
+
+명시적 마이그레이션 후 동일한 앱 실행 명령으로 `GET /api/calendar?month=YYYY-MM`, `POST /api/reservations`, `POST /api/reservations/cancel`을 사용한다. POST는 JSON 본문만 받으며 query를 거부한다. 상세 필드·오류·반복 취소 계약은 [API](docs/API.md)의 RS-004 절을 따른다. 생성 토큰을 로그나 URL에 넣지 않는다. 생성 응답이 손실되면 성공 여부를 알 수 없으므로 자동 재제출하지 않는다.
+
+취소 서비스는 `cancel_reservation(db_path, *, id, cancel_token, clock=utc_now, busy_timeout_ms=5000)`다. 유효한 토큰과 전체 미래 점유를 같은 쓰기 트랜잭션에서 검사하고 점유 해제·상태·UTC 시각·이력을 원자적으로 기록한다. 유효한 반복 취소는 추가 변경 없이 성공한다. 앱 팩토리의 키워드 `clock`, `busy_timeout_ms`는 테스트 주입용이며 HTTP로 변경할 수 없다.
+
+요청 제한 설정 3개는 1~2,147,483,647 정수(숫자 문자열 허용)이며 0/음수/bool/실수는 시작 시 거부한다. 본문 크기는 실제 수신 bytes로 검사한다. 빈도는 모든 공개 API 요청이 공유하는 프로세스별 고정 시간창으로 적용하며 전달 IP 헤더를 사용하지 않는다. 단일 worker를 유지하고 운영 수치는 별도 승인·조정한다. 공개 API의 성공/오류 모두 no-store이며 CORS 허용 헤더를 추가하지 않는다. 실제 프록시/TLS/운영 검증은 RS-008에 남아 있다. [RS-004 검증 보고서](qa/reports/RS-004.md).
 
 ## 시작 순서
 1. 저장소 루트에서 Agent를 시작한다. `AGENTS.md`와 `prompts/COMMON.md`의 필수 문서 로딩 절차를 따른다. Claude Code용 진입점은 `CLAUDE.md`다.

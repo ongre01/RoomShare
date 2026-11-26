@@ -36,6 +36,9 @@ class Settings:
     admin_host: str = "admin-room.example.com"
     booking_horizon_days: int = 90
     admin_access: str = "deny"
+    max_body_bytes: int = 16384
+    rate_limit_requests: int = 120
+    rate_limit_window_seconds: int = 60
 
     def __post_init__(self) -> None:
         if not isinstance(self.db_path, (str, Path)):
@@ -73,6 +76,18 @@ class Settings:
         if type(horizon) is not int or horizon <= 0:
             raise SettingsError("ROOMSHARE_BOOKING_HORIZON_DAYS: expected a positive integer")
         object.__setattr__(self, "booking_horizon_days", horizon)
+
+        for field in ("max_body_bytes", "rate_limit_requests", "rate_limit_window_seconds"):
+            value = getattr(self, field)
+            message = f"ROOMSHARE_{field.upper()}: expected an integer from 1 to 2147483647"
+            if isinstance(value, str) and re.fullmatch(r"[0-9]+", value.strip()):
+                try:
+                    value = int(value.strip())
+                except ValueError:
+                    raise SettingsError(message) from None
+            if type(value) is not int or not 1 <= value <= 2147483647:
+                raise SettingsError(message)
+            object.__setattr__(self, field, value)
 
 
 def load_settings(

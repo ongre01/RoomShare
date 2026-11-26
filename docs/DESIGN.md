@@ -77,3 +77,13 @@ HTTP와 독립된 동기 Python 서비스다. 호출자는 명시적으로 마�
 구문 검증 후 `write_transaction`의 BEGIN IMMEDIATE 안에서 현재 기간/clock → 정책/전체 충돌 확인 → UUID 예약 → 모든 날짜 점유 → 생성 로그를 같은 연결로 처리한다. 토큰은 `secrets.token_urlsafe(32)`로 생성하여 SHA-256 hex만 예약에 저장한다. 이력은 CREATE 및 `{before: [], after: [정렬된 날짜]}` JSON과 UTC 시각만 기록하며 이름/메모/토큰/해시는 복제하지 않는다.
 
 `date_policy.parse_date/parse_dates/month_dates`는 구문과 실제 달력 날짜를 검사한다. `load_booking_window(connection, clock)`은 DB 기간과 clock을 읽고 `BookingWindow.validate(dates)`는 기간/개수 정책을 적용한다. `reservations.find_conflicts(connection, dates)`는 충돌 날짜만 반환한다. `occupy_dates(connection, reservation_id, dates)`는 검증된 예약 날짜를 같은 연결에서 삽입하고 정확한 날짜 PK 오류만 변환한다. `append_creation_log(connection, reservation_id, dates, created_at)`는 생성 이력만 작성한다. 이 쓰기 helper는 활성 트랜잭션을 요구하며 commit/rollback/close하지 않는다. 후속 관리자 생성 서비스는 검증·점유·생성 로그 helper를 재사용할 수 있다. 수정/차단/취소의 상태 전이와 별도 로그 동작은 해당 티켓에서 구현한다.
+
+## RS-004 HTTP 및 취소 계약
+
+`app.routers.public`의 세 공개 경로는 RS-003 서비스와 `app.services.cancellation.cancel_reservation(db_path, *, id, cancel_token, clock=utc_now, busy_timeout_ms=5000)`을 호출한다. Pydantic strict/extra-forbid 모델과 고정 오류 응답을 사용하며 입력/SQL/traceback을 직렬화하지 않는다. 동기 서비스는 FastAPI worker thread에서 실행해 SQLite 잠금 대기로 event loop를 막지 않는다. 앱 생성은 계속 DB에 접속하지 않는다.
+
+취소의 BEGIN IMMEDIATE 안에서 ID 조회, 제출 토큰 SHA-256 및 hmac.compare_digest(없는 ID도 dummy digest 비교), 상태/현재 KST 정책 검사, 점유 전체 삭제, CANCELLED·UTC cancelled_at 및 CANCEL 날짜 snapshot 로그를 수행한다. 이미 취소된 예약은 토큰 인증 후 추가 쓰기 없이 반환한다. 과거/당일 포함 및 점유 없는 비정상 예약은 거부한다. 현재 예약 기간 설정과 취소 가능 여부는 독립적이다. commit 실패도 결과 반환 전에 rollback한다. HTTP 매핑은 API 문서의 RS-004 표를 따른다.
+
+`PublicAPIMiddleware`는 공개 달력·예약 경로와 하위 변형에만 적용한다. 실제 body bytes를 제한한 뒤 재생하고, 앱 전체 고정 시간창 요청 수를 Lock으로 보호한다. 모든 public 응답에 no-store를 적용하며 예상외 오류는 일반화된 500으로 끝내고 원문 오류를 기록하지 않는다. 응답 시작 이후 실패는 민감 원문 없는 오류로 전파하며 두 번째 응답을 보내지 않는다. 동적 공개 응답은 streaming을 사용하지 않는다. URL 자동 slash redirect는 꺼져 있어 잘못된 공개 경로는 404다. 관리자 경로는 기존 미구현 404 유지다.
+
+IP별 제한·전달 헤더 해석은 구현하지 않으며 IP 위조로 한도를 우회할 수 없다. 카운터는 프로세스마다 독립적이므로 단일 worker 운영과 프록시의 별도 제한/시간 제한이 필요하다. 요청 본문·토큰·결과 전체는 로깅하지 않는다. 앱/API 테스트는 실제 Nginx와 OCI 검증을 대신하지 않는다.
