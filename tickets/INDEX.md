@@ -2,7 +2,7 @@
 상태: TODO / IN_PROGRESS / DONE / BLOCKED. 모든 티켓은 초기 TODO. P0은 MVP, P2는 선택 확장.
 | ID | 제목 | 우선순위 | 선행 | 상태 |
 |---|---|---|---|---|
-| [RS-001](RS-001.md) | 프로젝트 초기화 | P0 | 없음 | TODO |
+| [RS-001](RS-001.md) | 프로젝트 초기화 | P0 | 없음 | DONE |
 | [RS-002](RS-002.md) | SQLite 스키마 및 마이그레이션 | P0 | RS-001 | TODO |
 | [RS-003](RS-003.md) | 예약 엔진 및 충돌 방지 | P0 | RS-002 | TODO |
 | [RS-004](RS-004.md) | 사용자 예약 API 및 취소 | P0 | RS-003 | TODO |
@@ -40,3 +40,6 @@ RS-004/005와 RS-006/007은 RS-003 이후 독립 진행 가능. RS-008에서 통
 - [RS-008 테스트 명세](../qa/specs/RS-008.md): 16개, 초기 NOT RUN
 - [RS-009 테스트 명세](../qa/specs/RS-009.md): 12개, 초기 NOT RUN
 - [RS-010 테스트 명세](../qa/specs/RS-010.md): 8개, 초기 NOT RUN
+
+## RS-001 검증 증거
+2026-11-26: TC 10/10 PASS, 전체 pytest 66 PASS, 깨끗한 런타임/개발 venv 및 loopback HTTP/종료 검증 PASS. [완료 보고서](../qa/reports/RS-001.md). 후속 티켓 및 전체 릴리스는 미완료.
