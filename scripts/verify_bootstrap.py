@@ -165,11 +165,15 @@ def main() -> int:
         development = fresh_environment(
             temp_root / "development", "requirements-dev.lock", env
         )
+        # RS-005 includes real browser tests in the full suite. Browser binaries
+        # are a development-only prerequisite (never part of the runtime venv).
+        run([str(development), "-m", "playwright", "install", "chromium"],
+            env=env, timeout=300)
         run(
             [str(development), "-m", "pytest", "-q", "tests/test_health.py"],
             env=env,
         )
-        run([str(development), "-m", "pytest", "-q"], env=env)
+        run([str(development), "-m", "pytest", "-q"], env=env, timeout=600)
     print("TC-001-09 PASS: runtime/development venvs verified and removed", flush=True)
     return 0
 

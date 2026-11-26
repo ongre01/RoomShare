@@ -1,0 +1,1134 @@
+$ python3 scripts/verify_bootstrap.py
+$ /usr/bin/python3 -m venv /tmp/roomshare-bootstrap-_5vpfgrx/runtime
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/runtime/bin/python -m pip install --disable-pip-version-check --quiet -r /jhyoo/RoomShare/requirements.lock
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/runtime/bin/python -m pip check
+No broken requirements found.
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/runtime/bin/python -c 'import platform, sqlite3; print('"'"'Python:'"'"', platform.python_version()); print('"'"'SQLite:'"'"', sqlite3.sqlite_version)'
+Python: 3.12.3
+SQLite: 3.45.1
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/runtime/bin/python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --fd 3 --no-access-log --log-level warning (reserved loopback port 51759)
+HTTP PASS: healthz=200, root/CSS=200, admin/API=404
+uvicorn cleanup: exit=-15
+Cleanup PASS: no server process/listener or DB remains
+$ /usr/bin/python3 -m venv /tmp/roomshare-bootstrap-_5vpfgrx/development
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/development/bin/python -m pip install --disable-pip-version-check --quiet -r /jhyoo/RoomShare/requirements-dev.lock
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/development/bin/python -m pip check
+No broken requirements found.
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/development/bin/python -c 'import platform, sqlite3; print('"'"'Python:'"'"', platform.python_version()); print('"'"'SQLite:'"'"', sqlite3.sqlite_version)'
+Python: 3.12.3
+SQLite: 3.45.1
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/development/bin/python -m playwright install chromium
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/development/bin/python -m pytest -q tests/test_health.py
+...............                                                          [100%]
+=============================== warnings summary ===============================
+../../tmp/roomshare-bootstrap-_5vpfgrx/development/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/roomshare-bootstrap-_5vpfgrx/development/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+15 passed, 1 warning in 0.55s
+exit=0
+$ /tmp/roomshare-bootstrap-_5vpfgrx/development/bin/python -m pytest -q
+........................................................................ [ 14%]
+........................................................................ [ 29%]
+........................................................................ [ 44%]
+........................................................................ [ 59%]
+.........................................FFFFFFFFFFFFFFFFF.FF........... [ 74%]
+........................................................................ [ 89%]
+..................................................                       [100%]
+=================================== FAILURES ===================================
+____________ test_tc004_12_actual_body_size_boundary[actual-below] _____________
+
+size = 15, content_length = 'actual'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2d8b0>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+______________ test_tc004_12_actual_body_size_boundary[actual-at] ______________
+
+size = 16, content_length = 'actual'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2e9f0>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_____________ test_tc004_12_actual_body_size_boundary[actual-over] _____________
+
+size = 17, content_length = 'actual'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2da20>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+____________ test_tc004_12_actual_body_size_boundary[omitted-below] ____________
+
+size = 15, content_length = 'omitted'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2d740>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_____________ test_tc004_12_actual_body_size_boundary[omitted-at] ______________
+
+size = 16, content_length = 'omitted'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2f400>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+____________ test_tc004_12_actual_body_size_boundary[omitted-over] _____________
+
+size = 17, content_length = 'omitted'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2f9c0>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+____________ test_tc004_12_actual_body_size_boundary[forged-below] _____________
+
+size = 15, content_length = 'forged'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2f6e0>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+______________ test_tc004_12_actual_body_size_boundary[forged-at] ______________
+
+size = 16, content_length = 'forged'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2f570>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_____________ test_tc004_12_actual_body_size_boundary[forged-over] _____________
+
+size = 17, content_length = 'forged'
+
+    @pytest.mark.parametrize("size", [15, 16, 17], ids=["below", "at", "over"])
+    @pytest.mark.parametrize("content_length", ["actual", "omitted", "forged"])
+    def test_tc004_12_actual_body_size_boundary(size, content_length):
+        headers = []
+        if content_length != "omitted":
+            length = size if content_length == "actual" else 1
+            headers.append((b"content-length", str(length).encode("ascii")))
+>       status, response_headers, payload = exchange(
+            middleware(), (b"x" * (size - 1), b"x"), headers=headers,
+        )
+
+tests/test_public_limits.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2e430>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_______ test_tc004_12_invalid_content_length_is_private_error[headers0] ________
+
+headers = [(b'content-length', b'-1')]
+
+    @pytest.mark.parametrize("headers", [
+        [(b"content-length", b"-1")], [(b"content-length", b"x")],
+        [(b"content-length", b"")], [(b"content-length", b"1"), (b"content-length", b"1")],
+    ])
+    def test_tc004_12_invalid_content_length_is_private_error(headers):
+>       status, response_headers, payload = exchange(middleware(), headers=headers)
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:84:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2efb0>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_______ test_tc004_12_invalid_content_length_is_private_error[headers1] ________
+
+headers = [(b'content-length', b'x')]
+
+    @pytest.mark.parametrize("headers", [
+        [(b"content-length", b"-1")], [(b"content-length", b"x")],
+        [(b"content-length", b"")], [(b"content-length", b"1"), (b"content-length", b"1")],
+    ])
+    def test_tc004_12_invalid_content_length_is_private_error(headers):
+>       status, response_headers, payload = exchange(middleware(), headers=headers)
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:84:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2f120>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_______ test_tc004_12_invalid_content_length_is_private_error[headers2] ________
+
+headers = [(b'content-length', b'')]
+
+    @pytest.mark.parametrize("headers", [
+        [(b"content-length", b"-1")], [(b"content-length", b"x")],
+        [(b"content-length", b"")], [(b"content-length", b"1"), (b"content-length", b"1")],
+    ])
+    def test_tc004_12_invalid_content_length_is_private_error(headers):
+>       status, response_headers, payload = exchange(middleware(), headers=headers)
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:84:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c56a90040>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_______ test_tc004_12_invalid_content_length_is_private_error[headers3] ________
+
+headers = [(b'content-length', b'1'), (b'content-length', b'1')]
+
+    @pytest.mark.parametrize("headers", [
+        [(b"content-length", b"-1")], [(b"content-length", b"x")],
+        [(b"content-length", b"")], [(b"content-length", b"1"), (b"content-length", b"1")],
+    ])
+    def test_tc004_12_invalid_content_length_is_private_error(headers):
+>       status, response_headers, payload = exchange(middleware(), headers=headers)
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:84:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2d8b0>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+______ test_tc004_12_huge_content_length_does_not_parse_unbounded_integer ______
+
+    def test_tc004_12_huge_content_length_does_not_parse_unbounded_integer():
+>       status, headers, payload = exchange(middleware(), headers=[(b"content-length", b"9" * 5000)])
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:91:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2e9f0>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+__________ test_tc004_12_fixed_window_boundary_and_forged_forwarding ___________
+
+    def test_tc004_12_fixed_window_boundary_and_forged_forwarding():
+        now = [100.0]
+        app = middleware(monotonic=lambda: now[0])
+        for index in range(3):
+>           status, _, _ = exchange(app, headers=[(b"x-forwarded-for", f"192.0.2.{index}".encode())])
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:101:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2da20>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_______ test_tc004_12_counter_is_shared_across_public_routes_and_methods _______
+
+    def test_tc004_12_counter_is_shared_across_public_routes_and_methods():
+        app = middleware(rate_limit_requests=2)
+>       assert exchange(app, path="/api/calendar", method="GET")[0] == 200
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:115:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2d740>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_________________ test_tc004_12_apps_have_independent_counters _________________
+
+    def test_tc004_12_apps_have_independent_counters():
+        first = middleware(rate_limit_requests=1)
+        second = middleware(rate_limit_requests=1)
+>       assert exchange(first)[0] == 200
+               ^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:127:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c57d2f400>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+________ test_tc004_10_unexpected_error_is_generic_no_store_without_log ________
+
+caplog = <_pytest.logging.LogCaptureFixture object at 0x705c56b03950>/tmp/roomshare-bootstrap-_5vpfgrx/development/lib/python3.12/site-packages/_pytest/unraisableexception.py:29: RuntimeWarning: coroutine 'exchange.<locals>.run' was never awaited
+  gc.collect()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+
+
+    def test_tc004_10_unexpected_error_is_generic_no_store_without_log(caplog):
+        async def failing(scope, receive, send):
+            raise RuntimeError("QA_PRIVATE_EXCEPTION_SENTINEL")
+
+>       status, headers, payload = exchange(middleware(failing))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_public_limits.py:159:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_public_limits.py:54: in exchange
+    replies = asyncio.run(run())
+              ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+main = <coroutine object exchange.<locals>.run at 0x705c56a90a50>, debug = None
+loop_factory = None
+
+    def run(main, *, debug=None, loop_factory=None):
+        """Execute the coroutine and return the result.
+
+        This function runs the passed coroutine, taking care of
+        managing the asyncio event loop, finalizing asynchronous
+        generators and closing the default executor.
+
+        This function cannot be called when another asyncio event loop is
+        running in the same thread.
+
+        If debug is True, the event loop will be run in debug mode.
+
+        This function always creates a new event loop and closes it at the end.
+        It should be used as a main entry point for asyncio programs, and should
+        ideally only be called once.
+
+        The executor is given a timeout duration of 5 minutes to shutdown.
+        If the executor hasn't finished within that duration, a warning is
+        emitted and the executor is closed.
+
+        Example:
+
+            async def main():
+                await asyncio.sleep(1)
+                print('hello')
+
+            asyncio.run(main())
+        """
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "asyncio.run() cannot be called from a running event loop")
+E           RuntimeError: asyncio.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:190: RuntimeError
+_______ test_tc004_10_started_response_failure_is_sanitized_not_replaced _______
+
+    def test_tc004_10_started_response_failure_is_sanitized_not_replaced():
+        async def failing(scope, receive, send):
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            raise RuntimeError("QA_PRIVATE_EXCEPTION_SENTINEL")
+
+>       with pytest.raises(RuntimeError, match="Public API response failed") as error:
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'Public API response failed'
+E         Actual message: 'asyncio.run() cannot be called from a running event loop'
+
+tests/test_public_limits.py:171: AssertionError
+=============================== warnings summary ===============================
+../../tmp/roomshare-bootstrap-_5vpfgrx/development/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/roomshare-bootstrap-_5vpfgrx/development/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_public_page.py::test_tc005_11_page_no_store_and_credentials_never_server_rendered
+  /usr/lib/python3.12/asyncio/events.py:36: RuntimeWarning: coroutine 'exchange.<locals>.run' was never awaited
+    def __init__(self, callback, args, loop, context=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[actual-below]
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[actual-at]
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[actual-over]
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[omitted-below]
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[omitted-at]
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[omitted-over]
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[forged-below]
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[forged-at]
+FAILED tests/test_public_limits.py::test_tc004_12_actual_body_size_boundary[forged-over]
+FAILED tests/test_public_limits.py::test_tc004_12_invalid_content_length_is_private_error[headers0]
+FAILED tests/test_public_limits.py::test_tc004_12_invalid_content_length_is_private_error[headers1]
+FAILED tests/test_public_limits.py::test_tc004_12_invalid_content_length_is_private_error[headers2]
+FAILED tests/test_public_limits.py::test_tc004_12_invalid_content_length_is_private_error[headers3]
+FAILED tests/test_public_limits.py::test_tc004_12_huge_content_length_does_not_parse_unbounded_integer
+FAILED tests/test_public_limits.py::test_tc004_12_fixed_window_boundary_and_forged_forwarding
+FAILED tests/test_public_limits.py::test_tc004_12_counter_is_shared_across_public_routes_and_methods
+FAILED tests/test_public_limits.py::test_tc004_12_apps_have_independent_counters
+FAILED tests/test_public_limits.py::test_tc004_10_unexpected_error_is_generic_no_store_without_log
+FAILED tests/test_public_limits.py::test_tc004_10_started_response_failure_is_sanitized_not_replaced
+19 failed, 463 passed, 2 warnings in 190.48s (0:03:10)
+exit=1
+
+exit=1

@@ -1,5 +1,5 @@
 # RoomShare — AI Agent Starter
-개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스를 제공한다. 사용자 화면·관리자 기능·운영 배포는 후속 티켓 범위다.
+개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스, RS-005는 사용자 모바일 예약 화면을 제공한다. 관리자 기능·운영 배포는 후속 티켓 범위다.
 
 ## 로컬 설치 및 실행 (RS-001)
 
@@ -11,12 +11,13 @@ source .venv/bin/activate
 python --version
 python -m pip install -r requirements-dev.lock
 python -m pip check
+python -m playwright install chromium
 python -m pytest --collect-only -q
 python -m pytest -q
 python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
-다른 터미널에서 `curl --fail http://127.0.0.1:8000/healthz`는 정확히 `{"status":"ok"}`를 반환한다. `/`에는 준비 화면만 있다. 서버는 Ctrl+C로 종료한다. 외부 인터페이스 바인딩 및 공개 배포는 이 절차에 포함되지 않는다. 런타임만 설치할 경우 새 venv에 `python -m pip install -r requirements.lock`을 사용한다. 운영 lock에는 pytest/HTTPX가 없다.
+다른 터미널에서 `curl --fail http://127.0.0.1:8000/healthz`는 정확히 `{"status":"ok"}`를 반환한다. `/`에는 사용자 예약 화면이 있다. 달력·예약을 사용하기 전에 아래 RS-002 명령으로 DB를 명시적으로 준비한다. 서버는 Ctrl+C로 종료한다. 외부 인터페이스 바인딩 및 공개 배포는 이 절차에 포함되지 않는다. 런타임만 설치할 경우 새 venv에 `python -m pip install -r requirements.lock`을 사용한다. 운영 lock에는 테스트 및 브라우저 도구가 없다.
 
 ## 설정과 앱 계약
 
@@ -49,12 +50,13 @@ python -m pytest -q tests/test_config.py tests/test_health.py
 python -m pytest -q tests/test_db.py tests/test_migrations.py
 python -m pytest -q tests/test_reservation_service.py tests/test_concurrency.py
 python -m pytest -q tests/test_public_api.py tests/test_cancellation.py tests/test_public_limits.py
+python -m pytest -q tests/test_public_page.py tests/e2e/test_public_ui.py
 python -m pytest -q
 python3 scripts/verify_bootstrap.py
 git diff --check
 ```
 
-`verify_bootstrap.py`는 TC-001-09용 별도 검증이다. 새 임시 런타임/개발 venv에 lock을 설치하고, pip check, loopback 실제 HTTP, 테스트 실행과 자식 프로세스 종료를 확인한 뒤 임시 파일을 제거한다. 패키지 저장소 접근이 필요하며 일반 pytest에서 중첩 실행하지 않는다. 증거와 TC 매핑은 [RS-001 보고서](qa/reports/RS-001.md)에 기록한다.
+`verify_bootstrap.py`는 TC-001-09용 별도 검증이다. 새 임시 런타임/개발 venv에 lock을 설치하고, pip check, loopback 실제 HTTP, 테스트 실행과 자식 프로세스 종료를 확인한 뒤 임시 venv/DB를 제거한다. RS-005부터 개발 venv에서 Chromium 바이너리를 준비하고 전체 E2E도 실행한다(브라우저 다운로드 캐시는 재사용). 패키지/브라우저 저장소 접근 및 브라우저 실행에 필요한 시스템 라이브러리가 필요하며 일반 pytest에서 중첩 실행하지 않는다. 처음 검증한 증거는 [RS-001 보고서](qa/reports/RS-001.md), RS-005 변경 이후 결과는 [RS-005 보고서](qa/reports/RS-005.md)에 기록한다.
 
 lock은 실제 설치된 전이 의존성까지 `pip freeze`로 고정했다. 기존 `.venv`를 동결하지 말고, 갱신할 때는 새로운 임시 venv에서 다음 순서로 실행한다. 개발 lock은 런타임 버전을 그대로 포함한 전체 개발 설치 목록이다.
 
@@ -66,6 +68,7 @@ python -m pip freeze > requirements.lock
 python -m pip install -c requirements.lock -r requirements-dev.in
 python -m pip freeze > requirements-dev.lock
 python -m pip check
+python -m playwright install chromium
 python -m pytest -q
 python3 scripts/verify_bootstrap.py
 deactivate
@@ -103,6 +106,16 @@ python scripts/migrate.py --db-path "$rs002_tmp_dir/roomshare.db" --check
 취소 서비스는 `cancel_reservation(db_path, *, id, cancel_token, clock=utc_now, busy_timeout_ms=5000)`다. 유효한 토큰과 전체 미래 점유를 같은 쓰기 트랜잭션에서 검사하고 점유 해제·상태·UTC 시각·이력을 원자적으로 기록한다. 유효한 반복 취소는 추가 변경 없이 성공한다. 앱 팩토리의 키워드 `clock`, `busy_timeout_ms`는 테스트 주입용이며 HTTP로 변경할 수 없다.
 
 요청 제한 설정 3개는 1~2,147,483,647 정수(숫자 문자열 허용)이며 0/음수/bool/실수는 시작 시 거부한다. 본문 크기는 실제 수신 bytes로 검사한다. 빈도는 모든 공개 API 요청이 공유하는 프로세스별 고정 시간창으로 적용하며 전달 IP 헤더를 사용하지 않는다. 단일 worker를 유지하고 운영 수치는 별도 승인·조정한다. 공개 API의 성공/오류 모두 no-store이며 CORS 허용 헤더를 추가하지 않는다. 실제 프록시/TLS/운영 검증은 RS-008에 남아 있다. [RS-004 검증 보고서](qa/reports/RS-004.md).
+
+## 사용자 모바일 화면 및 브라우저 검증 (RS-005)
+
+명시적으로 DB를 마이그레이션한 뒤 기존 Uvicorn 명령으로 실행하고 `http://127.0.0.1:8000/`을 연다. 다른 달을 오가며 날짜를 선택한 뒤 이름/메모를 입력해 예약한다. 성공 화면의 ID·토큰은 한 번만 표시하므로 함께 보관한다. 보관 후 닫기·새로고침·페이지 이동으로 지워진 정보는 복구할 수 없다. 취소하려면 두 정보를 별도 취소 폼에 입력하고 전체 취소에 동의한다. 모든 날짜가 오늘 이후인 예약만 사용자 취소할 수 있다.
+
+충돌 시 관련 월을 다시 조회하고 가능한 선택과 입력을 유지한다. 연결 중단·응답 손실은 결과 불명으로 표시하며 자동 재제출하지 않는다. 달력 갱신에 실패하면 달력 새로고침으로 선택 상태를 다시 확인한다. 서버 KST 날짜와 예약 범위를 사용하므로 브라우저의 시간대와 무관하다. JavaScript를 끄면 안내가 표시되며 예약·취소를 제출하지 않는다.
+
+Playwright Python은 개발 lock에만 포함되며 앱 운영에는 Node나 브라우저가 필요하지 않다. E2E는 케이스별 실제 임시 SQLite·loopback HTTP·고정 clock·Chromium을 사용한다. 기본 전체 pytest에도 포함되며 브라우저가 없으면 skip으로 숨기지 않고 실패한다. 최소 Linux 이미지에서는 브라우저 실행 오류가 알려주는 시스템 라이브러리를 별도로 준비해야 한다. `python -m playwright install-deps chromium`은 시스템 패키지를 설치하는 개발 환경 준비 명령이며 권한이 필요하다. 운영 서버에서 실행하지 않는다.
+
+선택적으로 WebKit을 준비한 환경에서는 `python -m playwright install webkit` 후 `python -m pytest -q tests/e2e/test_public_ui.py --browser-engine=webkit`로 별도 실행한다. WebKit/Chromium 자동화는 실제 iPhone Safari/Android Chrome을 대체하지 않는다. 실제 장치 절차와 현재 미실행 상태는 [수동 체크리스트](tests/manual/public-ui.md), 케이스별 결과는 [RS-005 보고서](qa/reports/RS-005.md)를 따른다.
 
 ## 시작 순서
 1. 저장소 루트에서 Agent를 시작한다. `AGENTS.md`와 `prompts/COMMON.md`의 필수 문서 로딩 절차를 따른다. Claude Code용 진입점은 `CLAUDE.md`다.

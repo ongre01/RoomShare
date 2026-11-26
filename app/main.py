@@ -12,7 +12,7 @@ from app.api_errors import install_error_handlers
 from app.db import DEFAULT_BUSY_TIMEOUT_MS
 from app.middleware import PublicAPIMiddleware
 from app.routers.public import router as public_router
-from app.services.date_policy import Clock, utc_now
+from app.services.date_policy import Clock, KST, utc_now
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -49,6 +49,13 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     async def home(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse(request=request, name="home.html")
+        # Bootstrap the first month from the server clock, never the device's
+        # timezone. Calendar API responses supply the current booking policy.
+        today = request.app.state.clock().astimezone(KST).date()
+        return templates.TemplateResponse(
+            request=request, name="home.html",
+            context={"initial_month": today.isoformat()[:7]},
+            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+        )
 
     return app

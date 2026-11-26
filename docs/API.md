@@ -17,7 +17,7 @@
 | PATCH | /api/admin/settings | {booking_horizon_days} → 설정 |
 | GET | /healthz | 최소 상태 응답, 내부 정보 제외 |
 
-RS-001 구현 계약: `GET /healthz`는 200 및 정확히 `{"status":"ok"}`를 반환한다. DB 준비 상태를 검사하는 endpoint는 아니다. `/`는 준비 화면, `/static/`은 기본 CSS만 제공한다. 관리자 경로는 미구현 404이며 예약 API는 아래 RS-004 절에서 구현하며 관리자 API는 후속 티켓에서 구현한다. 자동 OpenAPI/Swagger/ReDoc 경로는 비활성화한다.
+RS-001 구현 계약: `GET /healthz`는 200 및 정확히 `{"status":"ok"}`를 반환한다. DB 준비 상태를 검사하는 endpoint는 아니다. RS-005의 `/`는 사용자 예약 화면이며 `/static/`은 자체 CSS/JavaScript를 제공한다. 관리자 경로는 미구현 404이며 예약 API는 아래 RS-004 절에서 구현하며 관리자 API는 후속 티켓에서 구현한다. 자동 OpenAPI/Swagger/ReDoc 경로는 비활성화한다.
 
 관리자 경로는 관리자 호스트와 검증된 내부 접근 신호 필요. 변경 요청에는 동일 Origin 검증과 CSRF 방어. 공개 API는 CORS 기본 비허용, 요청 크기/빈도 제한. 이름 1~40자, 메모 최대 200자, 날짜 중복 입력 거부, 서버 설정 범위 검증. 공개 예약 생성 응답 및 취소 응답은 Cache-Control: no-store.
 
@@ -61,4 +61,4 @@ RS-001 구현 계약: `GET /healthz`는 200 및 정확히 `{"status":"ok"}`를 �
 
 요청 제한의 임시 기본값은 본문 16,384 bytes와 앱 전체 60초당 120요청이다. `ROOMSHARE_MAX_BODY_BYTES`, `ROOMSHARE_RATE_LIMIT_REQUESTS`, `ROOMSHARE_RATE_LIMIT_WINDOW_SECONDS` 1~2,147,483,647 정수로 조정한다. 실제 수신 bytes를 검사하므로 chunked/Content-Length 누락·과소 표기로 우회할 수 없다. 모든 공개 API 요청은 하나의 프로세스 내 고정 시간창을 공유하며 초과 요청은 429다. IP를 구분하거나 X-Forwarded-For/Forwarded를 신뢰하지 않는다. 따라서 IP 헤더 위조로 새 한도를 얻지 못한다. 단일 worker 운영이 전제이며 재시작 시 카운터는 초기화된다. 분산 한도, 프록시 연결/시간 제한 및 실제 신뢰 IP 설정·검증은 RS-008에 남는다. 운영 수치는 승인 전 임시값이다.
 
-RS-005 인계: 생성 응답 손실은 성공 여부 불명이므로 자동 재제출하지 않는다. 토큰은 생성 성공 화면에서만 1회 표시하고 URL/storage/로그에 넣지 않는다. 달력 enum은 기존 4개를 유지하며 선택 가능 여부는 min_date/max_date도 검사한다. 사용자 UI는 이번 티켓에 포함하지 않는다.
+RS-005 사용자 UI: 생성 응답 손실은 성공 여부 불명이므로 자동 재제출하지 않는다. 토큰은 생성 성공 화면에서만 1회 표시하고 URL/storage/로그에 넣지 않는다. 달력 enum은 기존 4개를 유지하며 선택 가능 여부는 min_date/max_date도 검사한다. 공개 API의 경로·응답·오류 계약은 변경하지 않는다. `GET /`은 DB를 읽지 않고 서버 KST 초기 월을 HTML에 제공하며 `Cache-Control: no-store`, `Referrer-Policy: no-referrer`를 적용한다. 상세 UI 동작은 DESIGN의 RS-005 절을 따른다.

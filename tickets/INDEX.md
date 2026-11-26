@@ -6,7 +6,7 @@
 | [RS-002](RS-002.md) | SQLite 스키마 및 마이그레이션 | P0 | RS-001 | DONE |
 | [RS-003](RS-003.md) | 예약 엔진 및 충돌 방지 | P0 | RS-002 | DONE |
 | [RS-004](RS-004.md) | 사용자 예약 API 및 취소 | P0 | RS-003 | DONE |
-| [RS-005](RS-005.md) | 사용자 모바일 웹 | P0 | RS-004 | TODO |
+| [RS-005](RS-005.md) | 사용자 모바일 웹 | P0 | RS-004 | DONE |
 | [RS-006](RS-006.md) | 관리자 접근 제어 및 API | P0 | RS-003 | TODO |
 | [RS-007](RS-007.md) | 관리자 모바일 웹 | P0 | RS-006 | TODO |
 | [RS-008](RS-008.md) | OCI 배포 및 백업 | P0 | RS-005,RS-007 | TODO |
@@ -52,3 +52,6 @@ RS-004/005와 RS-006/007은 RS-003 이후 독립 진행 가능. RS-008에서 통
 
 ## RS-004 검증 증거
 2026-11-26: TC 14/14 PASS, 대상 pytest 171 PASS, 전체 pytest 453 PASS. 공개 HTTP 계약·미래일 원자적 취소·독립 연결 취소 경쟁 20회·rollback·no-store·민감정보 비노출·본문/빈도 제한 및 실제 loopback HTTP 검증 PASS. [완료 보고서](../qa/reports/RS-004.md). 후속 티켓 미착수, 실제 프록시/OCI와 전체 공개 릴리스는 미완료.
+
+## RS-005 검증 증거
+2026-11-26: 로컬 TC 12 PASS, 실기기 TC-005-13 NOT RUN. 대상 pytest 29 PASS, fixture 격리 수정 및 키보드 보강 후 E2E+기존 제한 76 PASS, 깨끗한 런타임/개발 venv 및 전체 pytest 482 PASS(실패·skip 0). 실제 Chromium 360/390/1280px, 복수 월 예약·충돌·취소·응답 역전·토큰 비저장 검증 PASS. [완료 보고서](../qa/reports/RS-005.md). 필수 로컬 완료 조건에 따라 DONE이며 실기기/추가 WebKit/OCI 검증과 전체 공개 릴리스는 별도 미완료. 후속 티켓 미착수.
