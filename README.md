@@ -1,5 +1,5 @@
 # RoomShare — AI Agent Starter
-개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 스키마·명시적 마이그레이션·쓰기 트랜잭션 기반을 제공한다. 예약 기능 및 운영 배포는 아직 구현하지 않았다.
+개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 HTTP와 분리된 예약 생성·달력 서비스를 제공한다. 예약 HTTP API·사용자 화면·운영 배포는 후속 티켓 범위다.
 
 ## 로컬 설치 및 실행 (RS-001)
 
@@ -44,6 +44,7 @@ python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
 ```bash
 python -m pytest -q tests/test_config.py tests/test_health.py
 python -m pytest -q tests/test_db.py tests/test_migrations.py
+python -m pytest -q tests/test_reservation_service.py tests/test_concurrency.py
 python -m pytest -q
 python3 scripts/verify_bootstrap.py
 git diff --check
@@ -84,6 +85,12 @@ python scripts/migrate.py --db-path "$rs002_tmp_dir/roomshare.db" --check
 운영자가 대상 경로와 백업을 확인한 뒤 실행할 초기화 명령은 `python scripts/migrate.py`, 검증은 `python scripts/migrate.py --check`다. `--db-path` 생략 시 `load_settings()`의 `ROOMSHARE_DB_PATH`를 사용한다. 명시적 경로도 기존 Settings 규칙에 따라 상대 경로는 소스 루트 기준이다. CLI는 마이그레이션 때만 상위 디렉터리를 만들며 앱 기동은 DB를 초기화하지 않는다. 삭제·다운그레이드·자동 재시도는 제공하지 않는다.
 
 초기 `booking_horizon_days`는 실행 당시 Settings 값(환경 변수 > 선택적 .env > 기본 90)을 DB에 한 번 저장한다. 이후 DB 값이 운영 설정의 기준이며 재실행 시 환경 값을 바꾸어도 DB 값을 덮어쓰지 않는다. DB 연결/트랜잭션 소유권, 오류 및 다음 티켓 계약은 [DESIGN](docs/DESIGN.md)의 RS-002 절, 실제 검증은 [RS-002 보고서](qa/reports/RS-002.md)를 따른다.
+
+## 예약 엔진 (RS-003)
+
+명시적으로 마이그레이션한 DB 경로에 `app.services.reservations.create_reservation(db_path, name=..., dates=[...], memo="")`와 `app.services.calendar.get_calendar(db_path, "YYYY-MM")`를 호출한다. 생성은 예약 UUID·정렬 날짜·CONFIRMED·취소 토큰을 반환한다. 토큰 평문은 생성 결과에만 있으며 결과 전체를 로그에 출력하지 않는다. 달력은 날짜별 상태와 KST 오늘/예약 범위만 반환한다.
+
+각 호출은 `clock` 함수와 `busy_timeout_ms`를 주입할 수 있다. clock은 timezone-aware datetime을 반환하며 테스트에서는 고정 UTC 시각을 사용한다. 예약 가능 기간은 DB에서 매번 읽고, 생성에서는 BEGIN IMMEDIATE 이후 정책과 충돌을 검증한다. 일부 날짜 충돌이나 이력 쓰기 실패도 예약·점유·이력 전체를 롤백한다. 서비스 시그니처, 도메인 예외, 재사용 helper 및 후속 HTTP 매핑은 [DESIGN](docs/DESIGN.md)의 RS-003 계약과 [API](docs/API.md)를 따른다. 취소 동작과 HTTP 경로는 아직 제공하지 않는다.
 
 ## 시작 순서
 1. 저장소 루트에서 Agent를 시작한다. `AGENTS.md`와 `prompts/COMMON.md`의 필수 문서 로딩 절차를 따른다. Claude Code용 진입점은 `CLAUDE.md`다.

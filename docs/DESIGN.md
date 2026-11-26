@@ -52,12 +52,28 @@ SQLite 예외와 `sqlite_errorcode`는 그대로 전달한다. 날짜 PK 충돌�
 
 SQL은 SQLite의 `complete_statement()`로 문장 경계를 구분하고 `execute()`로 실행한다. `executescript()`의 암묵적 commit을 사용하지 않는다. SQL 파일 내 transaction/savepoint/PRAGMA/ATTACH/DETACH는 authorizer로 거부하여 runner의 트랜잭션 경계를 보존한다. SQL 파일은 신뢰된 저장소 코드이며 적용 전 리뷰한다. 다운그레이드·테이블 초기화 명령·자동 백업/복원은 제공하지 않는다.
 
-버전 1에서 `booking_horizon_days`만 삽입한다. CLI는 검증된 Settings 값을 인자로 넘기며 초기 출처는 환경 > .env > Settings 기본 90이다. 직접 호출자는 동일하게 Settings 값을 전달한다. 이후 DB의 관리자가 변경한 값이 우선하고 migration 재실행은 설정을 덮어쓰거나 삭제된 키를 복구하지 않는다. 90일은 기존 임시 정책이며 승인된 운영 정책으로 변경한 것이 아니다. 기간 조회/변경 서비스는 후속 티켓에서 구현한다.
+버전 1에서 `booking_horizon_days`만 삽입한다. CLI는 검증된 Settings 값을 인자로 넘기며 초기 출처는 환경 > .env > Settings 기본 90이다. 직접 호출자는 동일하게 Settings 값을 전달한다. 이후 DB의 관리자가 변경한 값이 우선하고 migration 재실행은 설정을 덮어쓰거나 삭제된 키를 복구하지 않는다. 90일은 기존 임시 정책이며 승인된 운영 정책으로 변경한 것이 아니다. 기간 조회는 아래 RS-003 계약을 따르며 변경 서비스는 후속 티켓 범위다.
 
 `check_database(db_path)` / `scripts/migrate.py --check`는 읽기 전용 연결의 일관된 snapshot에서 버전 최신 여부, WAL, `PRAGMA integrity_check` 및 `foreign_key_check`를 확인한다. 명령과 경로 설정은 README를 따른다. 운영 DB·백업에 대한 실행은 이번 검증에 포함되지 않는다.
 
 ### RS-003/006 인계
 
-취소 토큰 생성/비교는 아직 구현하지 않는다. RS-003은 32바이트 이상 무작위 URL-safe 토큰을 만들고 SHA-256 hex만 `cancel_token_hash`에 저장한다. RS-006의 관리자 생성도 동일하게 해시를 채우되 토큰 평문을 외부에 표시·로그하지 않고 폐기할 수 있다. 공개 생성 응답의 1회 표시 계약은 RS-004에서 구현한다.
+RS-002에서는 취소 토큰 생성/비교를 구현하지 않았다. RS-003은 32바이트 이상 무작위 URL-safe 토큰을 만들고 SHA-256 hex만 `cancel_token_hash`에 저장한다. 토큰 비교와 취소 동작은 RS-004 범위다. RS-006의 관리자 생성도 동일하게 해시를 채우되 토큰 평문을 외부에 표시·로그하지 않고 폐기할 수 있다. 공개 생성 응답의 1회 표시 계약은 RS-004에서 구현한다.
 
 `tests/conftest.py::migrated_db`는 Settings에서 받은 임시 파일 경로에 migration을 적용한다. 기존 앱 fixture는 DB를 생성하지 않는다. `tests/db_helpers.py`는 전체 논리 snapshot과 점유 불변식(RESERVED→CONFIRMED, BLOCKED→NULL, CANCELLED→점유 없음)을 검사한다. 교차 테이블 상태 전이는 DB CHECK로 구현하지 않았으며 후속 서비스의 원자적 쓰기와 이 helper로 검증한다.
+
+## RS-003 서비스 계약
+
+HTTP와 독립된 동기 Python 서비스다. 호출자는 명시적으로 마이그레이션한 DB 경로를 전달한다. 앱 기동과 HTTP 경로는 이번 티켓에서 변경하지 않는다.
+
+- `app.services.reservations.create_reservation(db_path, *, name, dates, memo="", clock=utc_now, busy_timeout_ms=5000)` → `{id, dates, status, cancel_token}`. 날짜는 정렬된 문자열 목록, 상태는 CONFIRMED다. 성공적으로 commit/close한 뒤에만 생성 결과를 반환한다. 결과에는 이름/메모/토큰 해시가 없으며 평문 토큰은 이 결과에만 존재한다. 호출자는 결과/요청 전체를 로깅하지 않는다.
+- `app.services.calendar.get_calendar(db_path, month, *, clock=utc_now, busy_timeout_ms=5000)` → `{dates: [{date, status}], today, min_date, max_date}`. YYYY-MM의 모든 날짜를 반환한다. 설정과 점유는 하나의 읽기 트랜잭션 snapshot에서 조회한다. 과거는 PAST가 우선하며 현재/미래는 RESERVED/BLOCKED/AVAILABLE이다. 예약 기간 밖 미래에도 새 상태를 추가하지 않으며 소비자가 min_date/max_date로 선택을 제한한다. 개인정보/예약 ID/토큰은 조회하지 않는다.
+- clock은 timezone-aware `datetime`을 반환하는 무인자 함수다. 기본은 현재 UTC이며 한 호출에서 한 번 읽어 Asia/Seoul 날짜와 UTC 기록 시각으로 사용한다. naive datetime은 개발 계약 오류(ValueError)다. 생성에서는 writer lock 획득 후 clock과 DB의 현재 `booking_horizon_days`를 읽는다. 기간은 오늘 포함 N일, 환경 설정의 오래된 값을 재사용하지 않는다.
+- 이름은 Unicode `strip()` 후 1~40 code point, 메모는 변형 없이 최대 200 code point(생략 시 빈 문자열)다. 문자열 외 타입/명시적 None은 거부한다. 날짜는 비어 있지 않은 Python list의 정확한 ASCII YYYY-MM-DD 문자열이며 중복·실재하지 않는 날짜는 거부한다. 현재 기간의 선택 개수/최솟값/최댓값은 쓰기 트랜잭션 안에서 검사한다. 90일은 기존 임시 정책이다.
+- `InvalidInputError.field`는 잘못된 입력 필드, `DateConflictError.dates`는 충돌 날짜만 정렬한 tuple, `TemporaryDatabaseError`는 SQLite BUSY/LOCKED 계열이다. 오류 메시지에 입력/SQL/개인정보를 넣지 않는다. 서비스는 HTTP 상태를 생성하지 않는다. 후속 HTTP 계층은 각각 400/422, 409, 503으로 매핑한다. 누락/비정상/날짜 표현 범위를 넘는 DB 기간은 `InvalidPolicyError`로 실패하며 기본 90으로 대체하지 않는다. 예상외 SQLite 오류는 원래 예외를 전파하고 HTTP 계층이 세부 정보를 숨겨야 한다.
+
+### 트랜잭션 및 재사용 helper
+
+구문 검증 후 `write_transaction`의 BEGIN IMMEDIATE 안에서 현재 기간/clock → 정책/전체 충돌 확인 → UUID 예약 → 모든 날짜 점유 → 생성 로그를 같은 연결로 처리한다. 토큰은 `secrets.token_urlsafe(32)`로 생성하여 SHA-256 hex만 예약에 저장한다. 이력은 CREATE 및 `{before: [], after: [정렬된 날짜]}` JSON과 UTC 시각만 기록하며 이름/메모/토큰/해시는 복제하지 않는다.
+
+`date_policy.parse_date/parse_dates/month_dates`는 구문과 실제 달력 날짜를 검사한다. `load_booking_window(connection, clock)`은 DB 기간과 clock을 읽고 `BookingWindow.validate(dates)`는 기간/개수 정책을 적용한다. `reservations.find_conflicts(connection, dates)`는 충돌 날짜만 반환한다. `occupy_dates(connection, reservation_id, dates)`는 검증된 예약 날짜를 같은 연결에서 삽입하고 정확한 날짜 PK 오류만 변환한다. `append_creation_log(connection, reservation_id, dates, created_at)`는 생성 이력만 작성한다. 이 쓰기 helper는 활성 트랜잭션을 요구하며 commit/rollback/close하지 않는다. 후속 관리자 생성 서비스는 검증·점유·생성 로그 helper를 재사용할 수 있다. 수정/차단/취소의 상태 전이와 별도 로그 동작은 해당 티켓에서 구현한다.

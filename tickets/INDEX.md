@@ -4,7 +4,7 @@
 |---|---|---|---|---|
 | [RS-001](RS-001.md) | 프로젝트 초기화 | P0 | 없음 | DONE |
 | [RS-002](RS-002.md) | SQLite 스키마 및 마이그레이션 | P0 | RS-001 | DONE |
-| [RS-003](RS-003.md) | 예약 엔진 및 충돌 방지 | P0 | RS-002 | TODO |
+| [RS-003](RS-003.md) | 예약 엔진 및 충돌 방지 | P0 | RS-002 | DONE |
 | [RS-004](RS-004.md) | 사용자 예약 API 및 취소 | P0 | RS-003 | TODO |
 | [RS-005](RS-005.md) | 사용자 모바일 웹 | P0 | RS-004 | TODO |
 | [RS-006](RS-006.md) | 관리자 접근 제어 및 API | P0 | RS-003 | TODO |
@@ -46,3 +46,6 @@ RS-004/005와 RS-006/007은 RS-003 이후 독립 진행 가능. RS-008에서 통
 
 ## RS-002 검증 증거
 2026-11-26: TC 11/11 PASS, 대상 pytest 82 PASS, 전체 pytest 148 PASS. 실제 임시 SQLite 제약·migration rollback·독립 writer 경합·연결 정리 및 CLI 검증 PASS. [완료 보고서](../qa/reports/RS-002.md). 후속 티켓 미착수, 전체 공개 릴리스는 미완료.
+
+## RS-003 검증 증거
+2026-11-26: TC 14/14 PASS, 대상 pytest 134 PASS, 전체 pytest 282 PASS. 동일 날짜·부분 중복 독립 연결 경쟁 각각 20회, 부분 쓰기/로그/COMMIT 실패 rollback, KST 날짜/DB 정책 및 토큰·개인정보 검증 PASS. [완료 보고서](../qa/reports/RS-003.md). 후속 티켓 미착수, 전체 공개 릴리스는 미완료.
