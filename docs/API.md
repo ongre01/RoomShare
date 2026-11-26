@@ -66,7 +66,7 @@ RS-005 사용자 UI: 생성 응답 손실은 성공 여부 불명이므로 자�
 
 ## RS-006 관리자 HTTP 계약
 
-`/admin`, `/api/admin` 및 각각의 모든 하위 경로·메서드를 라우팅과 본문 해석 전에 보호한다. 정확한 관리자 Host와 검증된 컨텍스트가 필요하다. 기본 거부이며 미인증은 없는 경로·메서드에도 403 `ADMIN_FORBIDDEN`이다. 인증된 미구현 `/admin`은 404, 지원하지 않는 메서드는 405다. 관리자 화면은 RS-007 범위다. 운영 프록시와 테스트 주입의 차이는 [신뢰 계약](DEPLOYMENT.md)을 따른다.
+`/admin`, `/api/admin` 및 각각의 모든 하위 경로·메서드를 라우팅과 본문 해석 전에 보호한다. 정확한 관리자 Host와 검증된 컨텍스트가 필요하다. 기본 거부이며 미인증은 없는 경로·메서드에도 403 `ADMIN_FORBIDDEN`이다. RS-007의 인증된 `GET /admin`은 관리자 HTML 200을 반환한다. 미구현 관리자 하위 경로는 404, 지원하지 않는 메서드는 405다. HTML에는 초기 KST 월만 주입하고 개인정보·CSRF·비밀은 포함하지 않는다. 운영 프록시와 테스트 주입의 차이는 [신뢰 계약](DEPLOYMENT.md)을 따른다.
 
 인증된 `GET /api/admin/csrf`는 `{csrf_token,expires_in:1800}`을 반환한다. 앱 시작 시 생성한 메모리 전용 256-bit 키로 관리자 호스트·발급 UTC epoch·32바이트 nonce에 HMAC-SHA256 서명한다. DB 변경/로그/영구 저장이 없으며 다른 앱·재시작 후 무효다. 모든 POST/PATCH/DELETE는 단일 `Origin: https://<admin_host>`와 단일 `X-CSRF-Token` 헤더가 필요하다. Origin은 포트/경로/마지막 슬래시를 허용하지 않는 정확 일치다. 토큰은 `0 <= 경과초 < 1800`만 유효하며 미래 발급·만료·변조·누락·중복은 403 `CSRF_REJECTED`다. 로그인/쿠키/URL 전달은 없다. 클라이언트는 토큰을 메모리에만 보관하고 만료 시 재발급한다. 실패한 쓰기는 자동 재제출하지 않는다.
 
@@ -86,3 +86,19 @@ POST/PATCH는 strict JSON 객체만 받으며 추가 필드·타입 강제 변�
 관리자 과거일 권한은 운영 승인 전 임시 제한이다. KST 오늘 이전 날짜를 하나라도 포함한 예약은 이름/메모를 포함한 모든 PATCH 및 취소를 409 `CHANGE_NOT_ALLOWED`로 거부한다. CANCELLED 수정도 거부한다. 오늘 예약은 관리자 수정/취소를 허용하고 공개 취소의 오늘 금지와 분리한다. 과거 BLOCKED 해제도 409다. 새 예약/차단의 과거일은 기존 입력 검증 422다. 기간 상한 366일과 로그 기본50/상한100은 임시값이다.
 
 로그 detail은 날짜 동작 `{before:[날짜],after:[날짜]}`, 설정 동작 `{before:정수,after:정수}`만 반환한다. 이름/메모/토큰/해시/프록시 비밀을 복제하지 않는다. 저장된 임의 추가 JSON 필드는 조회에서 제외하고 손상된 필수 값은 일반화된 500으로 실패한다. 관리자 조회의 이름/메모 허용과 공개 달력의 상태 전용 계약을 구분한다. 로그 SQL/commit 오류도 전체 롤백하고 SQLite BUSY/LOCKED만 503으로 분류한다.
+
+## RS-007 관리자 화면과 API 연결
+
+관리자 화면은 기존 API 계약을 그대로 사용한다. 모든 URL은 같은 origin의 상대 경로이며 브라우저가 변경 요청의 HTTPS Origin을 제공한다. 인증 비밀이나 Origin을 JavaScript에서 위조·주입하지 않는다.
+
+| 화면 | 요청 | 화면 처리 |
+|---|---|---|
+| 진입 | `GET /admin`, `GET /api/admin/csrf` | 보호된 HTML, CSRF 메모리 보관; HTML/응답 no-store |
+| 월 달력 | `GET /api/calendar?month=YYYY-MM` | 기존 상태 전용 응답과 KST today/min_date/max_date 사용 |
+| 월 예약 목록 | `GET /api/admin/reservations?month=YYYY-MM&status=ALL` | 활성/취소 상태 및 월 밖을 포함한 전체 날짜 표시 |
+| 등록 / 편집 / 취소 | `POST /api/admin/reservations`, `PATCH/DELETE /api/admin/reservations/{id}` | 전체 날짜 수정본과 원본 분리, 취소 확인 후 요청 |
+| 차단 / 해제 | `POST /api/admin/blocked-dates`, `DELETE /api/admin/blocked-dates/{date}` | 일괄 등록, 달력 BLOCKED 날짜별 확인 후 해제 |
+| 변경 이력 | `GET /api/admin/logs?page=N&page_size=10` | 최신순 페이지 이동; 서버의 기존 1~100 허용 범위 사용 |
+| 예약 가능 기간 | `GET/PATCH /api/admin/settings` | 현재 값 확인 및 1~366 입력, 기존 점유 보존 |
+
+`GET /api/calendar`는 관리자 정보가 필요하지 않은 달력 상태를 그대로 재사용한다. 관리자 전용 조회 API·DB 스키마·정책 변경은 없다. 관리자 호스트 프록시는 인증된 브라우저의 같은 origin 달력 조회도 전달해야 한다. 실제 프록시 구성/검증은 RS-008에 남긴다. 공개 호스트의 관리자 경로 차단은 유지한다.

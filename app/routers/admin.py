@@ -1,9 +1,12 @@
 """Protected HTTP adapters; middleware guards every administrator path first."""
 
 import re
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.routing import APIRoute
+from fastapi.templating import Jinja2Templates
 
 from app.admin_schemas import (
     AdminCreated, AdminReservation, BlockRequest, BlockResponse, CSRFResponse,
@@ -15,6 +18,7 @@ from app.schemas import CancellationResponse, ReservationRequest
 from app.security import issue_csrf_token
 from app.services import admin
 from app.services.errors import InvalidInputError
+from app.services.date_policy import KST
 from app.services.reservations import create_reservation
 
 
@@ -40,6 +44,19 @@ class AdminRoute(APIRoute):
 
 
 router = APIRouter(prefix="/api/admin", route_class=AdminRoute)
+page_router = APIRouter()
+templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
+
+
+@page_router.get("/admin", response_class=HTMLResponse)
+def management_page(request: Request) -> HTMLResponse:
+    """Render only after AdminMiddleware; no DB data or credentials in HTML."""
+    today = request.app.state.clock().astimezone(KST).date()
+    return templates.TemplateResponse(
+        request=request, name="admin/index.html",
+        context={"initial_month": today.isoformat()[:7]},
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
 
 
 def read_options(request: Request) -> dict:

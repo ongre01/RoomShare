@@ -1,0 +1,93 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div id="admin-app" data-initial-month="{{ initial_month }}">
+  <header class="page-header">
+    <p class="brand">RoomShare / 관리</p>
+    <h1>예약 관리</h1>
+    <p>원룸의 예약과 사용 불가일을 관리합니다. 모든 날짜는 한국시간 기준입니다.</p>
+    <nav aria-label="관리 메뉴">
+      <a href="#calendar-section">달력</a><a href="#reservations-section">예약</a>
+      <a href="#blocks-section">차단일</a><a href="#logs-section">변경 이력</a><a href="#settings-section">설정</a>
+    </nav>
+  </header>
+  <noscript><p class="notice">관리 기능에는 JavaScript가 필요합니다. 브라우저에서 JavaScript를 켠 뒤 다시 접속해 주세요.</p></noscript>
+  <div class="toolbar">
+    <button type="button" id="refresh-data" disabled>전체 새로고침</button>
+    <button type="button" id="renew-csrf" disabled>접근 다시 확인</button>
+  </div>
+  <p id="status" class="notice" role="status" aria-live="polite" tabindex="-1">관리 정보를 불러오는 중입니다.</p>
+  <div class="layout">
+    <section id="calendar-section" class="panel" aria-labelledby="calendar-heading">
+      <h2 id="calendar-heading">월별 달력</h2>
+      <div class="month-navigation">
+        <button id="prev-month" type="button" aria-label="이전 달" disabled>이전 달</button>
+        <h3 id="month-title"></h3>
+        <button id="next-month" type="button" aria-label="다음 달" disabled>다음 달</button>
+      </div>
+      <p id="booking-window" class="help-text"></p>
+      <div class="weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div id="calendar-grid" class="calendar-grid" aria-label="예약 날짜 선택"></div>
+      <p class="help-text">가능한 날짜를 눌러 예약 폼에 추가하거나 해제하세요. 다른 달을 선택해도 입력한 날짜는 유지됩니다.</p>
+    </section>
+    <section class="panel" aria-labelledby="form-heading">
+      <h2 id="form-heading">새 예약</h2>
+      <form id="reservation-form" autocomplete="off">
+        <label for="name">이름 / 닉네임 (1~40자)</label>
+        <input id="name" name="name" required maxlength="80" autocomplete="off" disabled>
+        <label for="memo">메모 (선택, 최대 200자)</label>
+        <textarea id="memo" name="memo" rows="3" maxlength="400" autocomplete="off" disabled></textarea>
+        <label for="dates">전체 예약 날짜</label>
+        <textarea id="dates" name="dates" rows="4" required spellcheck="false" aria-describedby="dates-help" disabled></textarea>
+        <p id="dates-help" class="help-text">YYYY-MM-DD 형식으로 한 줄에 하나씩 입력합니다. 쉼표나 공백으로도 구분할 수 있습니다.</p>
+        <div id="edit-review" class="review" hidden>
+          <h3>저장 전 변경 확인</h3>
+          <p id="edit-original"></p>
+          <p id="edit-diff" aria-live="polite"></p>
+        </div>
+        <div class="button-row">
+          <button type="submit" id="save-reservation" class="primary" disabled>예약 등록</button>
+          <button type="button" id="new-reservation" disabled>입력 초기화 / 새 예약</button>
+        </div>
+      </form>
+    </section>
+  </div>
+  <section id="reservations-section" class="panel" aria-labelledby="reservations-heading">
+    <h2 id="reservations-heading">이달의 예약</h2>
+    <p class="help-text">취소된 예약을 포함합니다. 수정할 때는 월 밖의 날짜도 모두 표시합니다.</p>
+    <div id="reservation-list" class="cards"></div>
+  </section>
+  <section id="blocks-section" class="panel" aria-labelledby="blocks-heading">
+    <h2 id="blocks-heading">사용 불가일</h2>
+    <form id="block-form" autocomplete="off">
+      <label for="block-dates">차단 날짜</label>
+      <textarea id="block-dates" name="dates" rows="3" required spellcheck="false" aria-describedby="block-help" disabled></textarea>
+      <p id="block-help" class="help-text">YYYY-MM-DD 형식으로 한 줄에 하나씩 입력하세요. 예약과 겹치면 전체 차단이 취소됩니다.</p>
+      <label for="block-memo">차단 메모 (선택, 최대 200자)</label>
+      <textarea id="block-memo" name="memo" rows="2" maxlength="400" disabled></textarea>
+      <button type="submit" id="save-block" class="primary" disabled>차단 등록</button>
+    </form>
+    <h3 class="subheading">이달의 차단일</h3>
+    <div id="blocked-list" class="button-row"></div>
+  </section>
+  <section id="logs-section" class="panel" aria-labelledby="logs-heading">
+    <h2 id="logs-heading">변경 이력</h2>
+    <p class="help-text">최근 기록부터 표시합니다. 기록 시각은 UTC입니다.</p>
+    <ol id="logs" class="logs"></ol>
+    <div class="button-row">
+      <button type="button" id="logs-prev" disabled>이전 이력</button>
+      <span id="logs-page" aria-live="polite"></span>
+      <button type="button" id="logs-next" disabled>다음 이력</button>
+    </div>
+  </section>
+  <section id="settings-section" class="panel" aria-labelledby="settings-heading">
+    <h2 id="settings-heading">예약 가능 기간</h2>
+    <p id="current-horizon"></p>
+    <form id="settings-form" autocomplete="off">
+      <label for="booking-horizon">오늘을 포함한 일수 (1~366)</label>
+      <input id="booking-horizon" name="booking_horizon_days" type="number" min="1" max="366" step="1" required inputmode="numeric" disabled>
+      <p class="help-text">기간을 줄여도 기존 예약과 차단일은 유지됩니다.</p>
+      <button type="submit" id="save-settings" class="primary" disabled>기간 저장</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -1,5 +1,5 @@
 # RoomShare — AI Agent Starter
-개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스, RS-005는 사용자 모바일 예약 화면, RS-006은 보호된 관리자 API를 제공한다. 관리자 화면·운영 배포는 후속 티켓 범위다.
+개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스, RS-005는 사용자 모바일 예약 화면, RS-006은 보호된 관리자 API, RS-007은 관리자 모바일 화면을 제공한다. 운영 배포는 후속 티켓 범위다.
 
 ## 로컬 설치 및 실행 (RS-001)
 
@@ -53,6 +53,7 @@ python -m pytest -q tests/test_reservation_service.py tests/test_concurrency.py
 python -m pytest -q tests/test_public_api.py tests/test_cancellation.py tests/test_public_limits.py
 python -m pytest -q tests/test_public_page.py tests/e2e/test_public_ui.py
 python -m pytest -q tests/test_admin_access.py tests/test_admin_api.py tests/test_admin_service.py
+python -m pytest -q tests/test_admin_page.py tests/e2e/test_admin_ui.py
 python -m pytest -q
 python3 scripts/verify_bootstrap.py
 git diff --check
@@ -123,7 +124,7 @@ Playwright Python은 개발 lock에만 포함되며 앱 운영에는 Node나 브
 
 기본 `ROOMSHARE_ADMIN_ACCESS=deny`를 유지한다. 보호된 프록시 운영 준비 시에만 `proxy_mtls`와 별도 `ROOMSHARE_ADMIN_PROXY_SECRET`을 설정한다. 비밀은 CSPRNG 32바이트 이상의 URL-safe 문자열(43~128자)이며 Git·로그·브라우저에 넣지 않는다. 실제 서버에서는 [프록시 신뢰 계약](docs/DEPLOYMENT.md)에 따라 Uvicorn의 `--no-proxy-headers`, loopback bind, Nginx 헤더 덮어쓰기 및 mTLS를 함께 검증해야 한다. 설정만으로 배포 검증이 완료되지 않는다.
 
-인증된 관리자는 `GET /api/admin/csrf`의 토큰을 메모리에 보관하고 모든 POST/PATCH/DELETE에 `Origin: https://<admin_host>`와 `X-CSRF-Token`으로 보낸다. 30분 만료·앱 재시작 후 재발급한다. 예약 조회/생성/부분 수정/취소, 일괄 차단/해제, 로그 페이지와 예약 기간 설정 API는 [API 계약](docs/API.md)을 따른다. 관리자 생성에서는 취소 토큰을 반환하지 않는다. `/admin` 화면은 RS-007 범위로 아직 없으며 유효한 컨텍스트에도 404다.
+인증된 관리자는 `GET /api/admin/csrf`의 토큰을 메모리에 보관하고 모든 POST/PATCH/DELETE에 `Origin: https://<admin_host>`와 `X-CSRF-Token`으로 보낸다. 30분 만료·앱 재시작 후 재발급한다. 예약 조회/생성/부분 수정/취소, 일괄 차단/해제, 로그 페이지와 예약 기간 설정 API는 [API 계약](docs/API.md)을 따른다. 관리자 생성에서는 취소 토큰을 반환하지 않는다. `/admin`은 RS-007 관리자 화면이며 같은 guard를 통과한 컨텍스트에만 HTML을 제공한다.
 
 과거 날짜 포함 예약의 모든 수정·취소와 과거 차단 해제는 임시로 금지한다. 오늘은 관리자 변경을 허용한다. 기간 축소는 기존 점유를 보존하고, PATCH 생략 날짜도 유지한다. 관리자 기간 변경 상한 366일·로그 기본 50/최대 100건은 승인 전 임시값이다. 추가 의존성·마이그레이션 없이 기존 SQLite 트랜잭션과 공개 생성 서비스를 재사용한다. 케이스별 검증은 [RS-006 보고서](qa/reports/RS-006.md)를 따른다.
 
@@ -156,3 +157,13 @@ RS-001 티켓을 구현해줘. AGENTS.md와 prompts/COMMON.md를 읽고,
 - `prompts/COMMON.md`: 상세 작업·테스트·Git·보고 규칙.
 - 실제 Agent에서 자동 로딩을 확인하는 절차는 `prompts/README.md` 참조. 파일 참조는 지침이며 강제 실행이나 테스트 통과를 보장하지 않는다.
 - v2의 개발 티켓 10개와 테스트 명세 126개는 변경하지 않았다. 이번 변경은 Agent 실행 지침에 한정한다.
+
+## 관리자 모바일 화면 (RS-007)
+
+보호된 관리자 호스트의 `/admin`을 연다. 기본 `deny` 설정은 계속 403이며 접속을 위해 코드나 환경에 인증 우회를 추가하지 않는다. 운영 접근 준비는 위 RS-006 및 DEPLOYMENT의 mTLS 계약을 따른다. 사용자 화면에는 관리자 링크를 제공하지 않는다.
+
+월별 달력과 예약 목록에서 등록·수정·취소를 수행한다. 날짜는 달력 선택 또는 전체 날짜 입력으로 편집할 수 있으며 월을 넘는 기존 날짜도 모두 표시한다. 저장 전 원본과 변경 날짜를 확인한다. 차단일 등록·확인 후 해제, 변경 이력 페이지 이동, 예약 가능 기간 설정도 같은 화면에서 제공한다. 예약 취소는 예약 전체에 적용한다.
+
+접근/CSRF 실패는 인증 환경을 확인한 뒤 `접근 다시 확인`으로 갱신한다. 실패한 변경은 자동 재제출하지 않으며 입력을 유지한다. 연결이 끊겨 결과를 알 수 없으면 `전체 새로고침`으로 처리 여부부터 확인한다. CSRF와 관리 정보는 브라우저 영구 저장소에 쓰지 않는다. 페이지를 떠나면 입력과 관리 데이터를 지운다.
+
+테스트는 기존 개발 lock의 Playwright Python/Chromium과 임시 SQLite를 사용한다. 로컬 자동화는 실제 mTLS나 실기기 인증서 검증을 대신하지 않는다. [관리자 수동 검증 절차](tests/manual/admin-ui.md)와 [RS-007 검증 보고서](qa/reports/RS-007.md)에 로컬/실기기/배포 결과를 구분한다.

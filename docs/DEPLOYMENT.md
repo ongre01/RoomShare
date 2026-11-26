@@ -25,3 +25,9 @@
 `app.dependency_overrides[resolve_admin_context]`는 Python 테스트 코드에서만 인증 상태를 모사하며 Host/Origin/CSRF는 그대로 검사한다. HTTP/환경 변수로 켜는 우회 설정은 없다. TestClient/ASGI 주입의 loopback 주소·합성 비밀·SUCCESS 결과는 실제 mTLS 검증 증거가 아니다.
 
 RS-008/009에 실제 Nginx 인증서 행렬(없음/다른 CA/만료/유효), Host/SNI·내부/Forwarded/중복 헤더 위조, 외부 backend 차단, no-store 및 크기/빈도 제한 검증을 인계한다. 이 티켓에서는 프록시 배포·방화벽·OCI를 변경하지 않았으며 해당 검증은 NOT RUN이다.
+
+## RS-007 관리자 화면 인계 (배포 실행 아님)
+
+인증된 관리자 호스트의 `/admin`을 직접 연다. 관리자 호스트 `/` 리다이렉트는 추가하지 않았다. 화면은 `/static/css/admin.css`, `/static/js/admin.js` 및 기존 `/api/admin/*`와 상태 전용 `/api/calendar`를 같은 origin으로 요청한다. HTTPS를 종료하는 프록시 뒤에서도 정적 경로는 상대 URL이므로 mixed content가 생기지 않는다. 관리자 mTLS 보호와 공개 호스트의 `/admin`·`/api/admin` 차단을 함께 적용해야 한다.
+
+변경 요청의 Origin은 브라우저의 실제 HTTPS 관리자 origin이어야 하며 CSRF는 발급 API에서 받아 메모리에만 보관한다. 403 후에는 인증 환경을 확인하고 화면의 `접근 다시 확인`을 사용한다. 실패한 쓰기를 자동 재제출하지 않는다. 브라우저 테스트의 Python 인증 컨텍스트 주입은 테스트 전용이며 운영 실행 방법으로 사용하지 않는다. 실기기 등록/수정/차단/취소 절차 및 미실행 상태는 `tests/manual/admin-ui.md`, 로컬 증거는 `qa/reports/RS-007.md`에 기록한다. 실제 인증서·Nginx·OCI·실기기 완료를 의미하지 않는다.

@@ -8,7 +8,7 @@
 | [RS-004](RS-004.md) | 사용자 예약 API 및 취소 | P0 | RS-003 | DONE |
 | [RS-005](RS-005.md) | 사용자 모바일 웹 | P0 | RS-004 | DONE |
 | [RS-006](RS-006.md) | 관리자 접근 제어 및 API | P0 | RS-003 | DONE |
-| [RS-007](RS-007.md) | 관리자 모바일 웹 | P0 | RS-006 | TODO |
+| [RS-007](RS-007.md) | 관리자 모바일 웹 | P0 | RS-006 | DONE |
 | [RS-008](RS-008.md) | OCI 배포 및 백업 | P0 | RS-005,RS-007 | TODO |
 | [RS-009](RS-009.md) | 통합 테스트 및 릴리스 | P0 | RS-008 | TODO |
 | [RS-010](RS-010.md) | PWA 홈 화면 지원 | P2 | RS-009 | TODO |
@@ -58,3 +58,6 @@ RS-004/005와 RS-006/007은 RS-003 이후 독립 진행 가능. RS-008에서 통
 
 ## RS-006 검증 증거
 2026-11-26: 필수 로컬 TC15/15 PASS, 대상506 PASS(보안271/API139/서비스96), 전체 pytest988 PASS(실패·skip0). 관리자 기본 차단·proxy/host/Origin/CSRF, 전체 관리 API, 수정/차단/설정 rollback·날짜 PK·독립 예약/차단 경쟁20회·개인정보 보호 검증 PASS. [완료 보고서](../qa/reports/RS-006.md). 실제 Nginx/mTLS/외부 헤더 위조/OCI는 NOT RUN으로 RS-008/009에 인계하며 공개 릴리스는 미완료. 후속 티켓 미착수.
+
+## RS-007 검증 증거
+2026-11-26: 로컬 TC12 PASS, 실제 장치 TC-007-13 NOT RUN. 대상50 PASS(페이지8/E2E42), 전체 pytest1038 PASS(실패·skip0). 실제 Chromium360/390/1280px, 관리 기능 정상·오류, 월 경계/충돌 입력 보존, 정확한 Origin/CSRF, 확인/중복/응답 손실·pagehide·안전 렌더링 검증 PASS. [완료 보고서](../qa/reports/RS-007.md). TEST_PLAN의 필수 로컬 게이트에 따라 DONE이며 실기기·실제 Nginx/mTLS·OCI·공개 릴리스는 별도 미완료. 후속 티켓 미착수.
