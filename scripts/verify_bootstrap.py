@@ -111,12 +111,13 @@ def verify_http(python: Path, temp_root: Path, env: dict[str, str]) -> None:
                     try:
                         opener.open(base_url + path, timeout=2).close()
                     except urllib.error.HTTPError as error:
-                        if error.code != 404:
-                            raise AssertionError(f"{path} returned {error.code}") from None
-                        error.close()
+                        with error:
+                            if (error.code != 403 or json.load(error).get("code") != "ADMIN_FORBIDDEN"
+                                    or error.headers.get("Cache-Control") != "no-store"):
+                                raise AssertionError(f"{path} did not enforce administrator denial") from None
                     else:
                         raise AssertionError(f"{path} was unexpectedly accessible")
-                print("HTTP PASS: healthz=200, root/CSS=200, admin/API=404", flush=True)
+                print("HTTP PASS: healthz=200, root/CSS=200, admin/API=403 no-store", flush=True)
             finally:
                 if process is not None:
                     if process.poll() is None:
@@ -173,7 +174,7 @@ def main() -> int:
             [str(development), "-m", "pytest", "-q", "tests/test_health.py"],
             env=env,
         )
-        run([str(development), "-m", "pytest", "-q"], env=env, timeout=600)
+        run([str(development), "-m", "pytest", "-q"], env=env, timeout=1800)
     print("TC-001-09 PASS: runtime/development venvs verified and removed", flush=True)
     return 0
 

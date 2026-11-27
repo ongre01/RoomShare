@@ -388,6 +388,48 @@ def test_tc005_10_cancel_failure_during_month_load_has_explicit_refresh_recovery
     assert len(db_snapshot(live_server)["reserved_dates"]) == 1
 
 
+def test_tc009_01_another_user_can_rebook_only_after_cancellation(page, live_server):
+    dates = ["2026-12-02", "2026-12-03"]
+    open_calendar(page, live_server)
+    choose(page, *dates)
+    fill_booking(page)
+    first = submit_booking(page, live_server)
+    page.locator("#dismiss-success").click()
+    live_server.sensitive_values.extend(["QA_USER_A", "QA_MEMO_SENTINEL"])
+
+    with httpx.Client(base_url=live_server.url, trust_env=False) as other:
+        public = other.get("/api/calendar", params={"month": "2026-12"})
+        assert public.status_code == 200 and public.headers["cache-control"] == "no-store"
+        calendar = public.json()
+        assert set(calendar) == {"dates", "today", "min_date", "max_date"}
+        assert all(set(entry) == {"date", "status"} for entry in calendar["dates"])
+        assert [entry["status"] for entry in calendar["dates"] if entry["date"] in dates] == ["RESERVED"] * 2
+        assert not any(value in public.text for value in (*live_server.sensitive_values, first["id"]))
+        body = {"name": "QA_USER_B", "dates": dates}
+        denied = other.post("/api/reservations", json=body)
+        assert denied.status_code == 409 and denied.json()["dates"] == dates
+
+        page.locator("#cancel-id").fill(first["id"])
+        page.locator("#cancel-token").fill(first["cancel_token"])
+        page.locator("#cancel-confirm").check()
+        page.locator("#cancel-button").click()
+        for date in dates:
+            expect(day(page, date)).to_be_enabled()
+        second = other.post("/api/reservations", json=body)
+        assert second.status_code == 201
+        replacement = second.json()
+        live_server.sensitive_values.append(replacement["cancel_token"])
+    assert replacement["id"] != first["id"]
+    with closing(connect(live_server.db_path)) as db:
+        assert dict(db.execute("SELECT id,status FROM reservations")) == {
+            first["id"]: "CANCELLED", replacement["id"]: "CONFIRMED",
+        }
+        assert dict(db.execute("SELECT date,reservation_id FROM reserved_dates")) == dict.fromkeys(dates, replacement["id"])
+        assert [row[0] for row in db.execute("SELECT action FROM reservation_logs ORDER BY id")] == [
+            "CREATE", "CANCEL", "CREATE",
+        ]
+
+
 def test_tc005_11_xss_token_privacy_storage_url_cache_and_copy_fallback(page, live_server):
     page.add_init_script("""
         Object.defineProperty(navigator, 'clipboard', {configurable: true,

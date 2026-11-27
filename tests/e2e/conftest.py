@@ -4,7 +4,7 @@ No browser/DB fallback or skip: install the documented development dependencies.
 Only the browser context is reused within a test; every test gets a fresh DB.
 """
 
-from contextlib import closing
+from contextlib import closing, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 import socket
@@ -52,9 +52,20 @@ class LiveServer:
 
 
 @pytest.fixture
-def live_server(tmp_path):
+def live_server(tmp_path, server_for_db):
     db_path = tmp_path / "browser.db"
     migrate(db_path)
+    with server_for_db(db_path) as server:
+        yield server
+
+
+@pytest.fixture
+def server_for_db():
+    return _serve_database
+
+
+@contextmanager
+def _serve_database(db_path: Path):
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     listener.listen()

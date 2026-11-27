@@ -191,6 +191,53 @@ def writes(page):
     return requests
 
 
+def test_tc009_02_manage_public_booking_and_review_committed_history(page, admin_server, admin_proxy):
+    with httpx.Client(base_url=admin_server.url, trust_env=False) as public:
+        created = public.post("/api/reservations", json={"name": "QA_USER_A", "dates": ["2026-12-02"]})
+        assert created.status_code == 201
+        rid = created.json()["id"]
+        admin_server.sensitive_values.append(created.json()["cancel_token"])
+    open_admin(page, admin_proxy)
+    reservation = card(page, rid)
+    expect(reservation).to_contain_text("QA_USER_A")
+    reservation.get_by_role("button", name="수정", exact=True).click()
+    fill(page, dates="2026-12-04", name="QA_EDITED")
+    updated = submit(page, "PATCH", f"/api/admin/reservations/{rid}", status=200)
+    assert updated["dates"] == ["2026-12-04"]
+    expect(reservation).to_contain_text("QA_EDITED")
+    page.locator("#block-dates").fill("2026-12-05")
+    submit(page, "POST", "/api/admin/blocked-dates", "#save-block")
+    expect(day(page, "2026-12-05")).to_contain_text("차단")
+    before = db_snapshot(admin_server)
+    page.locator("#block-dates").fill("2026-12-04\n2026-12-06")
+    conflict = submit(page, "POST", "/api/admin/blocked-dates", "#save-block", 409)
+    assert conflict["dates"] == ["2026-12-04"] and bool(db_snapshot(admin_server) == before)
+    page.once("dialog", lambda dialog: dialog.accept())
+    submit(page, "DELETE", "/api/admin/blocked-dates/2026-12-05", "#blocked-list [data-date='2026-12-05']", 200)
+    expect(day(page, "2026-12-05")).to_contain_text("가능")
+    page.locator("#booking-horizon").fill("14")
+    submit(page, "PATCH", "/api/admin/settings", "#save-settings", 200)
+    expect(page.locator("#current-horizon")).to_contain_text("14")
+    page.once("dialog", lambda dialog: dialog.accept())
+    with page.expect_response(lambda response: response.request.method == "DELETE") as cancelled:
+        reservation.get_by_role("button", name="예약 취소", exact=True).click()
+    assert cancelled.value.status == 200
+    ready(page)
+    expect(day(page, "2026-12-04")).to_contain_text("가능")
+    actions = ["CREATE", "ADMIN_UPDATE", "BLOCK", "UNBLOCK", "SETTINGS", "ADMIN_CANCEL"]
+    rows = page.locator("#logs li[data-id]")
+    expect(rows).to_have_count(len(actions))
+    for index, action in enumerate(reversed(actions)):
+        expect(rows.nth(index)).to_contain_text(action)
+    with closing(connect(admin_server.db_path)) as db:
+        assert tuple(db.execute("SELECT name,status FROM reservations WHERE id=?", (rid,)).fetchone()) == (
+            "QA_EDITED", "CANCELLED",
+        )
+        assert db.execute("SELECT count(*) FROM reserved_dates").fetchone()[0] == 0
+        assert db.execute("SELECT value FROM settings WHERE key='booking_horizon_days'").fetchone()[0] == "14"
+        assert [row[0] for row in db.execute("SELECT action FROM reservation_logs ORDER BY id")] == actions
+
+
 def test_tc007_02_03_create_edit_refresh_and_csrf(page, admin_server, admin_proxy):
     open_admin(page, admin_proxy)
     sent = writes(page)
