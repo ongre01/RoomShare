@@ -65,8 +65,22 @@
   <div class="page">
     <main id="content" class="document">
       <h1>운영 환경 구축 매뉴얼</h1>
+      <blockquote>
+        <p><strong>공개 배포 보류(NO-GO) · 2026-11-27 기준.</strong> OCI 전체 테스트에서 관리자 화면이 두 번 모두 시간 초과됐고, 실제 도메인의 HTTPS·관리자 인증과 서버 외부의 8000번 포트 차단도 아직 확인하지 못했다. 아래 절차는 <strong>승인된 전용 스테이징 서버</strong>에서만 진행한다. 최신 판정은 <a href="RELEASE_CHECKLIST.md">공개 전 체크리스트</a>를 확인한다.</p>
+      </blockquote>
+      <section aria-labelledby="staging-guide">
+        <h2 id="staging-guide">스테이징 배포 순서</h2>
+        <ol>
+          <li><strong>서버를 준비한다.</strong> 검증 기준은 Ubuntu 24.04와 Python 3.12다. 사용자용·관리자용 도메인을 각각 준비한다. HTTPS(443)는 시험할 클라이언트에만, SSH는 관리 IP에만 허용한다. 앱은 <code>127.0.0.1:8000</code>에서만 실행한다.</li>
+          <li><strong>승인된 커밋을 새 릴리스로 설치한다.</strong> <a href="DEPLOYMENT.md">배포 실행서 §1</a>에 따라 전용 <code>roomshare</code> 계정과 디렉터리를 준비한다. <code>APPROVED_REV</code>에 승인된 커밋을 지정하고 새 릴리스 경로에서 <code>"$release/scripts/install.sh" /etc/roomshare</code>를 실행한다. 이 단계는 가상환경과 설정 파일만 준비한다.</li>
+          <li><strong>두 도메인과 인증서를 설정한다.</strong> <code>/etc/roomshare/roomshare.env</code>는 <code>root:root</code> 소유, 권한 <code>0600</code>으로 두고 절대 DB 경로를 지정한다. 두 호스트명은 <a href="../deploy/nginx/roomshare.conf">Nginx 설정</a>의 <code>server_name</code>·<code>map</code>과 일치시킨다. 관리자 접근은 <code>deny</code>로 시작한다. 두 도메인의 서버 인증서, 관리자 CA·폐기 목록, 앱과 프록시의 동일한 비밀값을 준비한 뒤에만 <a href="#section-5">관리자 클라이언트 인증(mTLS)</a>을 <code>proxy_mtls</code>로 시험한다.</li>
+          <li><strong>DB 상태에 맞는 명령 하나만 실행한다.</strong> DB가 없으면 <a href="#first-install">최초 설치 명령</a>, 이미 있으면 <a href="#upgrade">기존 DB 업데이트 명령</a>을 사용한다. 백업이나 DB 검사가 실패하면 전환하지 않는다.</li>
+          <li><strong>앱을 시작하고 HTTPS로 확인한다.</strong> DB 검사 성공 후에만 <a href="#section-7">서비스 전환 절차</a>를 진행한다. 서버 안의 상태 확인과 별개로, 서버 밖에서 사용자 달력은 열리고 관리자 인증서 없는 접근과 8000번 직접 연결은 거부되는지 확인한다.</li>
+        </ol>
+        <p><strong>트래픽을 공개하기 전:</strong> <a href="#section-8">테스트·실기기·백업 복원·운영자 승인</a>이 남아 있다. 스테이징에서 화면이 열린 것만으로는 공개하지 않는다.</p>
+      </section>
       <nav class="toc" aria-label="문서 목차">
-        <h2>목차</h2>
+        <h2>세부 절차</h2>
         <ol>
           <li><a href="#section-1">1. 적용 범위와 구축 전 결정</a></li>
 <li><a href="#section-2">2. 파일 배치와 권한</a></li>
@@ -102,7 +116,7 @@
 </tr>
 <tr>
 <td>네트워크</td>
-<td>443 공개, 80은 인증서 검증 또는 HTTPS 이동에 필요한 경우만 사용, SSH는 관리 IP로 제한, 앱 포트 8000은 외부 차단</td>
+<td>스테이징의 443은 승인된 시험 클라이언트로 제한한다. 공개 승인 후에도 80은 별도 필요와 승인이 있을 때만 허용한다. SSH는 관리 IP로 제한하고 8000은 외부 차단한다.</td>
 </tr>
 <tr>
 <td>인증서</td>
@@ -156,8 +170,21 @@
 <ol>
 <li><a href="../README.md">README</a>의 검증 환경을 참고해 대상 서버의 Ubuntu·Python·SQLite 버전을 실제로 확인한다. 현재 로컬 검증 값은 Ubuntu 24.04, Python 3.12.3, SQLite 3.45.1이며 다른 조합은 별도 검증이 필요하다. Python 3.11 이상은 초기 목표다.</li>
 <li>승인된 커밋을 <code>/opt/roomshare/releases/&lt;commit&gt;</code>에 배치한다. 커밋과 <code>requirements.lock</code> 해시를 기록한다. 새 릴리스의 <code>scripts/install.sh</code>로 런타임 venv와 보호된 환경 파일을 준비한다.</li>
-<li>DB는 앱 시작 시 초기화하지 않는다. 서비스 계정으로 명시적 <code>deploy.sh init</code> 또는 <code>deploy.sh upgrade &lt;호환_이전_릴리스&gt;</code>를 실행한다. 기존 DB에는 백업을 먼저 검증한다. 실제 명령·lock·전환 순서는 <a href="DEPLOYMENT.md">실행서</a>를 따른다.</li>
+<li>DB는 앱 시작 시 초기화하지 않는다. 아래에서 <code>$release</code>는 새 릴리스의 실제 절대 경로다. 환경 파일을 셸로 불러오지 않고 systemd가 읽도록 한다. 두 명령 중 해당하는 하나만 실행한다.</li>
 </ol>
+<h3 id="first-install">최초 설치: DB가 없을 때</h3>
+<p>설정한 경로에 DB와 SQLite 보조 파일(<code>-wal</code>, <code>-shm</code>, <code>-journal</code>)이 모두 없는지 먼저 확인한다.</p>
+<pre><code class="language-bash">sudo systemd-run --wait --collect --pipe \
+  -p User=roomshare -p Group=roomshare \
+  -p EnvironmentFile=/etc/roomshare/roomshare.env \
+  "$release/scripts/deploy.sh" init</code></pre>
+<h3 id="upgrade">업데이트: 기존 DB가 있을 때</h3>
+<p><code>$previous_release</code>는 검증된 이전 릴리스의 실제 절대 경로다. 이전 릴리스로 백업을 만들고 <a href="#section-6">별도 경로에 복원</a>한 뒤 사본에서 새 마이그레이션을 시험한다. 전환 직전에는 유입과 백업 타이머를 중지하고, 진행 중인 백업이 끝나면 앱을 정지한다. 다른 쓰기 작업이 없는지 확인한 뒤 실행한다.</p>
+<pre><code class="language-bash">sudo systemd-run --wait --collect --pipe \
+  -p User=roomshare -p Group=roomshare \
+  -p EnvironmentFile=/etc/roomshare/roomshare.env \
+  "$release/scripts/deploy.sh" upgrade "$previous_release"</code></pre>
+<p>업데이트는 이전 릴리스의 도구로 백업을 검증한 뒤 새 마이그레이션을 적용한다. 실패하면 트래픽을 차단한 채 원인을 확인한다. <strong>기존 DB에 <code>init</code>을 대신 실행하지 않는다.</strong></p>
 <p><code>--check</code>는 기존 DB를 읽기 전용으로 확인하며 <code>schema: ...; integrity: ok; foreign keys: ok</code>가 나와야 한다. 모든 명령의 종료 코드도 기록한다. 기존 DB에 새 마이그레이션을 적용하기 전에는 호환성과 검증된 백업을 확인한다. 다운그레이드 명령은 제공되지 않는다.</p>
 <h2 id="section-4">4. 운영 설정과 앱 서비스</h2>
 <p>서비스가 읽는 환경 파일에는 최소한 아래 값을 넣는다. <code>ROOMSHARE_PUBLIC_HOST</code>와 <code>ROOMSHARE_ADMIN_HOST</code>는 스킴·포트·경로가 없는 서로 다른 실제 호스트명이어야 한다. 상대 DB 경로는 저장소 루트 기준으로 해석되므로 운영에서는 절대 경로를 쓴다. 선택적 저장소 <code>.env</code>보다 프로세스 환경 변수가 우선한다.</p>
@@ -193,7 +220,7 @@ ROOMSHARE_RATE_LIMIT_WINDOW_SECONDS=60
 <ol>
 <li>릴리스 커밋, <code>requirements.lock</code>, DB 스키마 버전, 이전 릴리스와의 DB 호환성을 기록한다. 승인된 스테이징에서 전체 <code>python -m pytest -q</code>와 RS-008/009의 관련 검증을 수행한다.</li>
 <li>배포 직전 검증된 백업을 확보한다. 새 코드·venv를 준비하고 마이그레이션의 영향과 중단 시간을 확인한다. 서비스 전환 실패 시 원래 릴리스로 되돌릴 수 있도록 이전 코드와 <strong>호환 DB 스냅샷</strong>을 보존한다.</li>
-<li>Nginx 설정 검사 후 승인된 서비스 전환을 수행한다. 실제 <code>nginx -t</code>·서비스 재시작·reload 명령, 종료 코드, 시각, 실행자를 기록한다. 오류가 나면 자동 재시도나 무조건 재제출 대신 현재 DB·프로세스 상태부터 확인한다.</li>
+<li>DB 검사가 성공하면 <a href="DEPLOYMENT.md">배포 실행서 §3</a>에 따라 <code>current</code> 링크를 전환하고 systemd 유닛을 검증·설치한 뒤 <code>roomshare.service</code>를 시작한다. <code>curl -fsS http://127.0.0.1:8000/healthz</code>의 기대 응답은 <code>{"status":"ok"}</code>다. 이는 앱이 응답한다는 뜻이지 DB나 HTTPS 검사 결과가 아니다. <code>sudo nginx -t</code> 성공 후 승인된 스테이징에서만 Nginx를 시작하거나 reload한다.</li>
 <li>아래 시험을 로컬 스테이징과 OCI에서 <strong>각각</strong> 기록한다. 실제 기기 Safari/Chrome 시험은 브라우저 자동화와 별개다.</li>
 </ol>
 <div class="table-wrap"><table>
@@ -239,7 +266,13 @@ ROOMSHARE_RATE_LIMIT_WINDOW_SECONDS=60
 </table></div>
 <p>실패 시 트래픽 노출을 멈추고 원인을 기록한다. 이전 코드가 현재 DB 스키마와 호환되면 이전 릴리스로 되돌린다. 호환되지 않으면 보존한 호환 DB 스냅샷을 격리 검증한 뒤 승인된 복원 절차를 따른다. 데이터 손실 가능성이 있으면 임의 복원하지 않고 운영자에게 알린다.</p>
 <h2 id="section-8">8. 완료 기록</h2>
-<p>RS-008의 케이스별 실제 명령·종료 코드·결과는 <code>qa/reports/RS-008.md</code>, RS-009의 통합·릴리스 결과는 <code>qa/reports/RS-009.md</code>에 기록한다. 미실행·skip·환경 부족을 PASS로 바꾸지 않는다. 실제 OCI 접근이 없으면 OCI 검증은 NOT RUN으로 유지한다. 필수 보안 경계, 백업 복원, 실기기, 정책 승인 중 하나라도 미완료면 공개 릴리스는 NO-GO다.</p>
+<p>같은 후보 커밋에서 아래 항목을 모두 확인한 뒤 운영자에게 공개 승인을 받는다. 미실행이나 실패는 통과로 기록하지 않는다.</p>
+<ul>
+<li>전체 테스트(<code>python -m pytest -q</code>)가 관리자 화면을 포함해 통과하고, 실제 iOS Safari·Android Chrome에서 사용자·관리자 흐름이 동작한다.</li>
+<li>별도 클라이언트에서 실제 두 도메인의 HTTPS를 확인한다. 사용자 도메인의 관리자 경로는 차단되고 관리자 도메인은 유효한 클라이언트 인증서로만 열린다. 외부에서 8000번 포트에 연결되지 않는다(공개 IPv6가 있으면 함께 확인).</li>
+<li>배포된 서비스 재시작 후에도 데이터가 유지된다. 일일 백업 타이머가 실제로 실행되고, 생성한 백업을 새 경로에 복원해 조회할 수 있다. 이전 릴리스로 되돌리는 절차와 운영 정책도 확인한다.</li>
+</ul>
+<p>환경·시각·명령·종료 코드와 비밀값 없는 결과를 <a href="../qa/reports/RS-008.md">배포 검증 기록</a>과 <a href="../qa/reports/RS-009.md">릴리스 검증 기록</a>에 남긴다. 최종 판단은 <a href="RELEASE_CHECKLIST.md">공개 전 체크리스트</a>를 따른다.</p>
 <p>관련 문서: <a href="DEPLOYMENT.md">배포 계약</a> · <a href="DESIGN.md">설계</a> · <a href="TEST_PLAN.md">테스트 계획</a> · <a href="../tickets/RS-008.md">RS-008 티켓</a> · <a href="../qa/specs/RS-008.md">RS-008 QA 명세</a>.</p>
     </main>
   </div>

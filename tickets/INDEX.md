@@ -65,6 +65,8 @@ RS-004/005와 RS-006/007은 RS-003 이후 독립 진행 가능. RS-008에서 통
 ## RS-008 검증 증거
 2026-11-27: 대상 자동 17 PASS, 전체 회귀 1,055 PASS(실패·skip 0). 로컬 TLS/mTLS·헤더 경계·설치/재실행·WAL 백업/격리 복원 검증. 명세 16개: PASS 10, BLOCKED 3(전용 systemd 권한·재시작·timer), NOT RUN 3(외부 클라이언트·OCI 2개). [실행 명령·전체 회귀·인계](../qa/reports/RS-008.md). 필수 항목 미검증으로 BLOCKED, 공개 NO-GO. 대상 17개 재검증 후 RS-009의 로컬 시험만 인계했다.
 
+이후 [OCI 격리 시험](../qa/reports/RS-008.md#oci-재검증)을 반영한 명세는 13 PASS / 2 BLOCKED / 1 NOT RUN이다. [승인 커밋 릴리스 준비 검증](../qa/reports/RS-008.md#승인-커밋-릴리스-준비)에서 `prepare` 추가 후 대상 20 PASS, 최종 전체 회귀 1,062 PASS. 실제 운영 계정·외부 연결·배포 게이트는 변경되지 않았다.
+
 ## RS-009 검증 증거
 2026-11-27: 후보 `9f776d6` 격리 통합 4 PASS, 새 개발 venv 전체 1,059 PASS(실패·skip 0). 명세 12개: 8 PASS, 2 BLOCKED(배포 접근 경계·운영 승인), 2 NOT RUN(실기기·OCI). [로컬 측정 및 요구사항 추적](../qa/reports/RS-009.md), [공개 전 체크리스트](../docs/RELEASE_CHECKLIST.md). 공개 NO-GO, RS-010 미착수.
 

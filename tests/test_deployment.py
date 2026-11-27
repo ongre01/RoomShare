@@ -5,6 +5,7 @@ import configparser
 from datetime import datetime, timezone
 import ensurepip
 import fcntl
+import hashlib
 import os
 from pathlib import Path
 import shlex
@@ -39,6 +40,101 @@ def test_tc008_01_script_and_unit_syntax():
     for name in ("install", "deploy"):
         run("bash", "-n", ROOT / f"scripts/{name}.sh")
     run("systemd-analyze", "verify", *sorted((ROOT / "deploy/systemd").iterdir()))
+
+
+@pytest.fixture
+def release_checkout(tmp_path):
+    checkout = tmp_path / "source"
+    (checkout / "app").mkdir(parents=True)
+    (checkout / "app/version").write_text("approved\n")
+    (checkout / "deploy").mkdir()
+    shutil.copy(ROOT / "deploy/roomshare.env.example", checkout / "deploy")
+    (checkout / "scripts").mkdir()
+    for name in ("deploy.sh", "install.sh", "migrate.py", "snapshot.py", "verify_bootstrap.py"):
+        shutil.copy(ROOT / "scripts" / name, checkout / "scripts")
+    (checkout / "requirements.lock").write_text(f"pip=={ensurepip.version()}\n")
+    (checkout / "requirements-dev.lock").write_text("not for deployment\n")
+    git = ("git", "-C", checkout, "-c", "user.name=Release QA", "-c", "user.email=qa@example.invalid",
+           "-c", "commit.gpgSign=false")
+    run(*git, "init", "-q")
+    run(*git, "add", ".")
+    run(*git, "commit", "-qm", "Approved release")
+    return checkout, git
+
+
+def test_tc008_02_prepare_uses_approved_commit_and_refuses_overwrite(tmp_path, release_checkout, monkeypatch):
+    checkout, git = release_checkout
+    rev = run(*git, "rev-parse", "HEAD").stdout.strip()
+    lock_digest = hashlib.sha256((checkout / "requirements.lock").read_bytes()).hexdigest()
+    (checkout / "app/version").write_text("later commit\n")
+    run(*git, "commit", "-qam", "Unapproved release")
+    (checkout / "app/version").write_text("working tree\n")
+    (checkout / "app/untracked").touch()
+    (checkout / ".env").write_text("# local only\n")
+    releases = tmp_path / "release space"
+    releases.mkdir(mode=0o755)
+    config = tmp_path / "config"
+    config.mkdir(mode=0o700)
+    monkeypatch.setenv("PIP_NO_INDEX", "1")
+    monkeypatch.delenv("ROOMSHARE_DB_PATH", raising=False)
+    command = (checkout / "scripts/deploy.sh", "prepare", rev, releases, config)
+
+    result = run(*command)
+    target = releases / rev
+    assert str(target) in result.stdout and lock_digest in result.stdout
+    assert (target / "app/version").read_text() == "approved\n"
+    assert not any((target / path).exists() for path in
+                   ("app/untracked", ".env", ".git", "requirements-dev.lock", "scripts/verify_bootstrap.py"))
+    run(target / ".venv/bin/python", "-m", "pip", "check")
+    assert target.stat().st_mode & 0o777 == 0o755
+    assert (config / "roomshare.env").stat().st_mode & 0o777 == 0o600
+    assert not (tmp_path / "current").exists()
+
+    (target / "app/version").write_text("do not overwrite\n")
+    run(*command, ok=False)
+    assert (target / "app/version").read_text() == "do not overwrite\n"
+
+
+def test_tc008_02_prepare_failure_keeps_previous_release_and_config(tmp_path, release_checkout, monkeypatch):
+    checkout, git = release_checkout
+    (checkout / "requirements.lock").write_text("rs008-unavailable-package==1\n")
+    run(*git, "commit", "-qam", "Simulate installation failure")
+    rev = run(*git, "rev-parse", "HEAD").stdout.strip()
+    releases = tmp_path / "releases"
+    releases.mkdir(mode=0o755)
+    previous = releases / "previous"
+    previous.mkdir()
+    current = tmp_path / "current"
+    current.symlink_to(previous)
+    config = tmp_path / "config"
+    config.mkdir(mode=0o700)
+    settings = config / "roomshare.env"
+    settings.write_text("# operator configuration\n")
+    settings.chmod(0o600)
+    monkeypatch.setenv("PIP_NO_INDEX", "1")
+    prepare = (checkout / "scripts/deploy.sh", "prepare")
+
+    run(*prepare, "no-such-revision", releases, config, ok=False)
+    assert list(releases.iterdir()) == [previous]
+    result = run(*prepare, rev, releases, config, ok=False)
+    assert "Release ready:" not in result.stdout
+    assert (releases / rev).stat().st_mode & 0o777 == 0o700
+    assert current.resolve() == previous and settings.read_text() == "# operator configuration\n"
+
+
+def test_tc008_02_prepare_refuses_a_dangling_current(tmp_path, release_checkout, monkeypatch):
+    checkout, git = release_checkout
+    rev = run(*git, "rev-parse", "HEAD").stdout.strip()
+    releases = tmp_path / "releases"
+    releases.mkdir(mode=0o755)
+    config = tmp_path / "config"
+    config.mkdir(mode=0o700)
+    current = tmp_path / "current"
+    current.symlink_to(releases / rev)
+    monkeypatch.setenv("PIP_NO_INDEX", "1")
+    run(checkout / "scripts/deploy.sh", "prepare", rev, releases, config, ok=False)
+    assert current.is_symlink() and not current.exists()
+    assert not list(releases.iterdir()) and not list(config.iterdir())
 
 
 def test_tc008_02_repeat_install_preserves_data_config_and_reports_failure(tmp_path, migrated_db):

@@ -13,19 +13,19 @@
 ```bash
 set -euo pipefail
 umask 022
-rev=$(git rev-parse --verify "${APPROVED_REV:?}^{commit}")
+rev=$(git rev-parse --verify --end-of-options "${APPROVED_REV:?}^{commit}")
 release=/opt/roomshare/releases/$rev
 install -d -m 0755 /opt/roomshare/releases
 install -d -m 0700 /etc/roomshare
 install -d -m 0700 -o roomshare -g roomshare /var/lib/roomshare /var/backups/roomshare
-mkdir -m 0755 "$release"
-git archive "$rev" -- app requirements.lock deploy scripts/install.sh scripts/deploy.sh \
-  scripts/migrate.py scripts/snapshot.py | tar -x -C "$release"
-"$release/scripts/install.sh" /etc/roomshare
-sha256sum "$release/requirements.lock"
+./scripts/deploy.sh prepare "$rev" /opt/roomshare/releases /etc/roomshare
 ```
 
-`install.sh`는 릴리스의 최종 경로에 `.venv`를 만들고 **런타임 lock**을 설치한 뒤 `pip check`한다. 승인된 비활성 릴리스에 다시 실행해도 기존 0600 환경 파일과 DB·인증서를 덮어쓰지 않는다. 신규 설치는 [deny 환경 예제](../deploy/roomshare.env.example)로 시작한다. 로컬 개발용 설정은 [별도 예제](../.env.example)다. 운영 checkout에 `.env`, 실제 DB, 인증서 또는 키를 복사하지 않는다. 설치 실패 시 전환하지 않는다.
+`prepare`는 배포 관리자만 수정할 수 있는 checkout에서 실행한다. 두 디렉터리는 미리 준비한 신뢰된 절대 경로여야 한다. 릴리스 상위 디렉터리는 설치자 소유이고 그룹·기타 쓰기가 없어야 하며, 설정 디렉터리는 설치자 소유 0700이어야 한다. `APPROVED_REV`에는 검토한 커밋 ID를 지정한다. 작업트리나 Git 인덱스를 복사하지 않고 해당 커밋의 앱·배포 템플릿·런타임 lock·필수 스크립트만 추출한다.
+
+새 릴리스는 최종 경로에 0700으로 만든다(venv는 이동할 수 없다). 그 커밋의 `install.sh`가 `.venv`를 만들고 **런타임 lock**을 설치한 뒤 `pip check`한다. 기존 0600 환경 파일은 보존하고, 신규 설치만 [deny 환경 예제](../deploy/roomshare.env.example)로 시작한다. 성공하면 lock의 SHA-256과 `Release ready:` 경로를 출력하고 릴리스를 0755로 연다. 이 단계는 DB를 열거나 `current`·서비스·프록시를 전환하지 않는다.
+
+같은 커밋의 경로가 이미 있거나 `current` 링크가 끊어져 있으면 중단한다. 중간 실패로 남은 0700 디렉터리는 사용하지 않는다. 원인을 해결하고 비활성임을 확인한 뒤 다른 빈 이름으로 격리하고 `prepare`를 다시 실행한다. **종료 코드 0과 `Release ready:`를 확인한 뒤에만** §2~3으로 진행한다. 개발용 [.env 예제](../.env.example), 실제 DB·인증서·키는 릴리스에 복사하지 않는다.
 
 ### 2. 호스트·인증서·프록시 준비
 
