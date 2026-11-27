@@ -1,0 +1,27 @@
+[Unit]
+Description=RoomShare application
+After=network.target
+
+[Service]
+Type=exec
+User=roomshare
+Group=roomshare
+WorkingDirectory=/opt/roomshare/current
+EnvironmentFile=/etc/roomshare/roomshare.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStartPre=/usr/bin/env /opt/roomshare/current/.venv/bin/python scripts/migrate.py --check
+ExecStart=/usr/bin/flock --shared --nonblock --no-fork ${ROOMSHARE_DB_PATH}.lock /opt/roomshare/current/.venv/bin/python -m uvicorn app.main:create_app --factory --workers 1 --host 127.0.0.1 --port 8000 --no-proxy-headers --no-access-log
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/roomshare
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

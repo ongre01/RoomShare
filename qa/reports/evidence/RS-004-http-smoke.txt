@@ -1,0 +1,28 @@
+RS-004 isolated loopback HTTP smoke
+Run date: 2026-11-26T14:11:22.259428+09:00
+Command: .venv/bin/python /tmp/rs004_http_smoke.py
+Interpreter: repository .venv/bin/python
+Python: 3.12.3
+SQLite: 3.45.1
+OS: Ubuntu 24.04.5 LTS
+Server command: .venv/bin/python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port <ephemeral> --no-access-log
+Data: isolated TemporaryDirectory SQLite; synthetic test data only
+Health readiness (200): PASS
+Calendar contract (200): PASS
+Creation (201/no-store/exact fields): PASS
+Creation omits private name/memo: PASS
+Conflict (409/DATE_CONFLICT/dates/no-store): PASS
+Conflict omits private inputs: PASS
+Cancellation (200/CANCELLED/no-store): PASS
+Cancellation omits private inputs: PASS
+Rebooking (201/new ID/no-store): PASS
+Invalid typed payload (422/INVALID_INPUT/no-store): PASS
+Malformed JSON (400/INVALID_JSON/no-store): PASS
+Post-write calendar privacy and enums (200): PASS
+SQLite integrity and foreign keys: PASS
+Observed child exit code: -15
+Child clean shutdown signal/status: PASS
+Captured stdout/stderr exclude sentinels/tokens: PASS
+No child left running: PASS
+Temporary DB cleanup: PASS
+Smoke command exit code: 0

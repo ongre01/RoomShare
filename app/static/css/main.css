@@ -1,0 +1,114 @@
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #19323d;
+  background: #f3f6f7;
+  font-synthesis: none;
+  line-height: 1.6;
+  --accent: #116d63;
+  --accent-dark: #07554e;
+  --muted: #526670;
+  --border: #d4dfe3;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+main { max-width: 70rem; margin: 0 auto; padding: 1.5rem 1rem; overflow-wrap: anywhere; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: clamp(1.65rem, 4vw, 2.35rem); line-height: 1.35; letter-spacing: -.035em; }
+h2 { font-size: 1.25rem; line-height: 1.4; letter-spacing: -.025em; }
+h3 { font-size: 1.125rem; line-height: 1.4; }
+button, input, textarea { font: inherit; }
+button { cursor: pointer; touch-action: manipulation; }
+button, input, textarea { max-width: 100%; min-width: 0; }
+button { min-height: 2.75rem; padding: .6rem .85rem; border: 1px solid var(--border); border-radius: .6rem; color: inherit; background: #fff; font-weight: 600; line-height: 1.4; }
+button:hover:not(:disabled) { background: #eaf3f1; border-color: #7baca5; }
+button:disabled { cursor: default; color: #64747b; background: #edf1f2; border-color: #dbe2e5; }
+:focus-visible { outline: 3px solid #2558b0; outline-offset: 3px; }
+.skip-link { position: absolute; left: 1rem; top: -5rem; z-index: 10; padding: .75rem 1rem; color: #fff; background: #19323d; border-radius: .5rem; }
+.skip-link:focus { top: .75rem; }
+.page-header { padding: .5rem 0 1.75rem; }
+.brand { color: var(--accent); font-size: 1rem; font-weight: 800; letter-spacing: -.025em; margin-bottom: .75rem; }
+.intro { margin-top: .8rem; color: var(--muted); }
+.panel { min-width: 0; padding: 1.2rem; background: #fff; border: 1px solid var(--border); border-radius: 1rem; }
+.booking-layout { display: grid; gap: 1rem; align-items: start; }
+.section-heading { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
+.timezone { color: var(--muted); font-size: .875rem; }
+.month-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .25rem; align-items: center; }
+.month-navigation h3 { text-align: center; }
+.month-navigation button { padding: .55rem .65rem; font-size: .875rem; }
+.calendar-tools { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem; margin: .25rem 0; }
+.text-button { border-color: transparent; color: var(--accent-dark); padding: .4rem .2rem; font-size: .875rem; text-decoration: underline; text-underline-offset: .2em; }
+.text-button:disabled { background: transparent; border-color: transparent; text-decoration: none; }
+.help-text { font-size: .875rem; color: var(--muted); }
+.weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .25rem; }
+.weekdays { margin-top: 1rem; margin-bottom: .4rem; text-align: center; color: var(--muted); font-size: .875rem; }
+.calendar-grid { min-height: 20rem; align-content: start; }
+.calendar-grid button { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .2rem; width: 100%; min-height: 4rem; padding: .35rem .05rem; border-radius: .5rem; background: #f7fbfa; border-color: #bfd6d1; font-size: 1rem; }
+.day-number { font-weight: 700; }
+.day-status { font-size: .875rem; line-height: 1.25; font-weight: 500; }
+.calendar-grid button[aria-pressed="true"], .calendar-grid button.selected { color: #fff; background: var(--accent); border-color: var(--accent); }
+.calendar-grid button[aria-pressed="true"]:hover:not(:disabled), .calendar-grid button.selected:hover:not(:disabled) { background: var(--accent-dark); }
+.calendar-grid button:disabled { color: #596870; background: #f0f3f4; border-color: #dce4e7; }
+.calendar-grid button[data-status="RESERVED"] { background: #edf1f8; border-color: #d2dae8; color: #3e5276; }
+.calendar-grid button[data-status="BLOCKED"] { background: #f7eeee; border-color: #ead8d8; color: #805252; }
+.calendar-grid button[data-status="PAST"] { color: #617078; background: #f4f6f7; }
+.calendar-grid button[aria-current="date"] .day-number { text-decoration: underline; text-underline-offset: .15em; }
+.calendar-empty { min-height: 4rem; }
+.calendar-legend { list-style: none; padding: 0; margin: 1.1rem 0 0; display: flex; flex-wrap: wrap; gap: .35rem .8rem; font-size: .875rem; color: var(--muted); }
+.calendar-legend li { display: inline-flex; align-items: center; gap: .3rem; }
+.legend-swatch { display: inline-block; width: .75rem; height: .75rem; flex: 0 0 .75rem; border: 1px solid #bfd6d1; border-radius: .2rem; background: #f7fbfa; }
+.legend-swatch.selected { background: var(--accent); border-color: var(--accent); }
+.legend-swatch.reserved { background: #edf1f8; border-color: #b0bed6; }
+.legend-swatch.blocked { background: #f7eeee; border-color: #d3b0b0; }
+.legend-swatch.past { background: #f0f3f4; border-color: #c7d1d6; }
+.selection-total { margin: 0; color: var(--accent-dark); font-size: .875rem; }
+.selection-total strong { margin-right: .25rem; font-size: 1.25rem; }
+.selection-summary { margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid #e4eaed; }
+.selected-dates { list-style: none; padding: 0; margin: .5rem 0 0; }
+.selected-dates li { display: flex; gap: .5rem; align-items: center; justify-content: space-between; padding: .2rem 0; }
+.selected-dates button { flex-shrink: 0; font-size: .875rem; padding: .4rem .65rem; }
+.field { margin-bottom: 1rem; }
+label { display: block; margin-bottom: .4rem; font-size: .9375rem; font-weight: 600; }
+.required-text, .optional-text { margin-left: .35rem; font-size: .875rem; font-weight: 400; color: var(--muted); }
+input:not([type="checkbox"]), textarea { width: 100%; border: 1px solid #aebfc7; border-radius: .5rem; padding: .65rem .75rem; background: #fff; color: #19323d; line-height: 1.5; }
+input:not([type="checkbox"]) { min-height: 2.9rem; }
+input:disabled, textarea:disabled { background: #f0f3f4; color: #526670; }
+textarea { display: block; resize: vertical; }
+.field .help-text { margin-top: .35rem; }
+.primary-button { color: #fff; background: var(--accent); border-color: var(--accent); }
+.primary-button:hover:not(:disabled) { color: #fff; background: var(--accent-dark); border-color: var(--accent-dark); }
+.full-width { width: 100%; }
+#reservation-form > .help-text { margin-top: .5rem; text-align: center; }
+.status-message { margin-top: .8rem; font-size: .9375rem; color: var(--muted); }
+.status-message:empty { margin-top: 0; }
+.status-message[data-kind="error"] { color: #9a2929; }
+.status-message[data-kind="success"] { color: var(--accent-dark); }
+.success-panel { margin-top: 1rem; border-color: #8bbab0; background: #f6fcf9; }
+.success-panel > p:not(.eyebrow) { margin-top: .7rem; }
+.success-panel .field { margin-top: 1rem; }
+.eyebrow { color: var(--accent-dark); font-weight: 700; font-size: .875rem; margin-bottom: .35rem; }
+.notice { padding: .8rem 1rem; border-left: 3px solid var(--accent); background: #eaf3f1; font-size: .9375rem; }
+.credential { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 1rem; }
+.button-row { display: flex; flex-wrap: wrap; gap: .6rem; }
+.cancellation-panel { margin-top: 1rem; }
+.section-description { margin-top: .6rem; margin-bottom: 1.25rem; color: var(--muted); }
+.confirmation { display: flex; gap: .65rem; align-items: center; min-height: 2.75rem; margin: .5rem 0 1rem; cursor: pointer; font-size: .9375rem; }
+.confirmation input { flex: 0 0 1.25rem; width: 1.25rem; height: 1.25rem; margin: 0; accent-color: var(--accent); }
+.page-footer { padding: 1.5rem 0 .5rem; color: var(--muted); font-size: .875rem; }
+
+@media (min-width: 52rem) {
+  main { padding: 2.5rem 2rem; }
+  .page-header { padding-bottom: 2rem; }
+  .booking-layout { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1.5rem; }
+  .panel { padding: 1.5rem; }
+  .calendar-grid button, .calendar-empty { min-height: 4.5rem; }
+  .cancellation-panel, .success-panel { margin-top: 1.5rem; }
+  .cancellation-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+}
+
+@media (max-width: 23rem) {
+  main { padding-right: .75rem; padding-left: .75rem; }
+  .panel { padding: .9rem; }
+  .weekdays, .calendar-grid { gap: .2rem; }
+}
