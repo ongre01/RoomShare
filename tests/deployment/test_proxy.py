@@ -115,7 +115,13 @@ def proxy(migrated_db, pki):
     settings = Settings(db_path=migrated_db, public_host=PUBLIC, admin_host=ADMIN,
                         admin_access="proxy_mtls", admin_proxy_secret=secret)
     seen = {}
-    with backend(settings, seen) as upstream, tempfile.TemporaryDirectory(prefix="roomshare-nginx-") as temp:
+    with backend(settings, seen) as upstream, tls_proxy(upstream, pki, secret) as (request, http_port):
+        yield request, seen, http_port
+
+
+@contextmanager
+def tls_proxy(upstream, pki, secret):
+    with tempfile.TemporaryDirectory(prefix="roomshare-nginx-") as temp:
         work = Path(temp)
         http_port, tls_port = local_port(), local_port()
         while tls_port == http_port:
@@ -177,7 +183,7 @@ def proxy(migrated_db, pki):
                         time.sleep(0.03)
                 else:
                     pytest.fail("Private nginx readiness timed out")
-                yield request, seen, http_port
+                yield request, http_port
                 log = (work / "access.log").read_text().splitlines()
                 assert log and all(re.fullmatch(r"[1-5]\d{2} \d+\.\d+", line) for line in log)
             finally:
