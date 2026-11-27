@@ -13,7 +13,7 @@
 ```bash
 set -euo pipefail
 umask 022
-rev=$(git rev-parse --verify --end-of-options "${APPROVED_REV:?}^{commit}")
+rev=$(git rev-parse --verify --end-of-options "${APPROVED_REV:-HEAD}^{commit}")
 release=/opt/roomshare/releases/$rev
 install -d -m 0755 /opt/roomshare/releases
 install -d -m 0700 /etc/roomshare
@@ -21,7 +21,7 @@ install -d -m 0700 -o roomshare -g roomshare /var/lib/roomshare /var/backups/roo
 ./scripts/deploy.sh prepare "$rev" /opt/roomshare/releases /etc/roomshare
 ```
 
-`prepare`는 배포 관리자만 수정할 수 있는 checkout에서 실행한다. 두 디렉터리는 미리 준비한 신뢰된 절대 경로여야 한다. 릴리스 상위 디렉터리는 설치자 소유이고 그룹·기타 쓰기가 없어야 하며, 설정 디렉터리는 설치자 소유 0700이어야 한다. `APPROVED_REV`에는 검토한 커밋 ID를 지정한다. 작업트리나 Git 인덱스를 복사하지 않고 해당 커밋의 앱·배포 템플릿·런타임 lock·필수 스크립트만 추출한다.
+`prepare`는 배포 관리자만 수정할 수 있는 checkout에서 실행한다. 두 디렉터리는 미리 준비한 신뢰된 절대 경로여야 한다. 릴리스 상위 디렉터리는 설치자 소유이고 그룹·기타 쓰기가 없어야 하며, 설정 디렉터리는 설치자 소유 0700이어야 한다. `APPROVED_REV`가 없거나 비어 있으면 현재 체크아웃의 커밋(`HEAD`)을 사용한다. 다른 커밋을 준비할 때만 그 값을 지정한다. 지정한 커밋이 없으면 중단한다. 작업트리나 Git 인덱스를 복사하지 않고 해당 커밋의 앱·배포 템플릿·런타임 lock·필수 스크립트만 추출한다.
 
 새 릴리스는 최종 경로에 0700으로 만든다(venv는 이동할 수 없다). 그 커밋의 `install.sh`가 `.venv`를 만들고 **런타임 lock**을 설치한 뒤 `pip check`한다. 기존 0600 환경 파일은 보존하고, 신규 설치만 [deny 환경 예제](../deploy/roomshare.env.example)로 시작한다. 성공하면 lock의 SHA-256과 `Release ready:` 경로를 출력하고 릴리스를 0755로 연다. 이 단계는 DB를 열거나 `current`·서비스·프록시를 전환하지 않는다.
 

@@ -72,7 +72,7 @@
         <h2 id="staging-guide">스테이징 배포 순서</h2>
         <ol>
           <li><strong>서버를 준비한다.</strong> 검증 기준은 Ubuntu 24.04와 Python 3.12다. 사용자용·관리자용 도메인을 각각 준비한다. HTTPS(443)는 시험할 클라이언트에만, SSH는 관리 IP에만 허용한다. 앱은 <code>127.0.0.1:8000</code>에서만 실행한다.</li>
-          <li><strong>승인된 커밋을 새 릴리스로 설치한다.</strong> <a href="DEPLOYMENT.md">배포 실행서 §1</a>에 따라 전용 <code>roomshare</code> 계정과 디렉터리를 준비한다. <code>APPROVED_REV</code>에 승인된 커밋을 지정하고 새 릴리스 경로에서 <code>"$release/scripts/install.sh" /etc/roomshare</code>를 실행한다. 이 단계는 가상환경과 설정 파일만 준비한다.</li>
+          <li><strong>승인된 커밋을 새 릴리스로 설치한다.</strong> <a href="DEPLOYMENT.md">배포 실행서 §1</a>에 따라 전용 <code>roomshare</code> 계정과 디렉터리를 준비한다. 실행서의 기본 대상은 현재 커밋(<code>HEAD</code>)이다. 다른 커밋을 준비할 때만 <code>APPROVED_REV</code>를 지정한다. 이 단계는 DB나 서비스를 전환하지 않는다.</li>
           <li><strong>두 도메인과 인증서를 설정한다.</strong> <code>/etc/roomshare/roomshare.env</code>는 <code>root:root</code> 소유, 권한 <code>0600</code>으로 두고 절대 DB 경로를 지정한다. 두 호스트명은 <a href="../deploy/nginx/roomshare.conf">Nginx 설정</a>의 <code>server_name</code>·<code>map</code>과 일치시킨다. 관리자 접근은 <code>deny</code>로 시작한다. 두 도메인의 서버 인증서, 관리자 CA·폐기 목록, 앱과 프록시의 동일한 비밀값을 준비한 뒤에만 <a href="#section-5">관리자 클라이언트 인증(mTLS)</a>을 <code>proxy_mtls</code>로 시험한다.</li>
           <li><strong>DB 상태에 맞는 명령 하나만 실행한다.</strong> DB가 없으면 <a href="#first-install">최초 설치 명령</a>, 이미 있으면 <a href="#upgrade">기존 DB 업데이트 명령</a>을 사용한다. 백업이나 DB 검사가 실패하면 전환하지 않는다.</li>
           <li><strong>앱을 시작하고 HTTPS로 확인한다.</strong> DB 검사 성공 후에만 <a href="#section-7">서비스 전환 절차</a>를 진행한다. 서버 안의 상태 확인과 별개로, 서버 밖에서 사용자 달력은 열리고 관리자 인증서 없는 접근과 8000번 직접 연결은 거부되는지 확인한다.</li>

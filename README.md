@@ -171,7 +171,7 @@ RS-001 티켓을 구현해줘. AGENTS.md와 prompts/COMMON.md를 읽고,
 
 ## Ubuntu 배포 및 복구 (RS-008)
 
-승인된 Ubuntu 스테이징에서 디렉터리를 준비한 뒤 `./scripts/deploy.sh prepare "$APPROVED_REV" /opt/roomshare/releases /etc/roomshare`를 실행한다. 지정한 커밋으로 새 릴리스를 준비할 뿐, DB와 실행 중인 서비스는 변경하지 않는다. 최초 설치와 업데이트의 다음 단계는 [배포 실행서 §3](docs/DEPLOYMENT.md#3-db-준비와-서비스-전환)을 따른다.
+승인된 Ubuntu 스테이징에서 디렉터리를 준비한 뒤 `./scripts/deploy.sh prepare "${APPROVED_REV:-HEAD}" /opt/roomshare/releases /etc/roomshare`를 실행한다. 기본 대상은 현재 커밋(`HEAD`)이며, 다른 커밋을 쓰려면 `APPROVED_REV`로 지정한다. DB와 실행 중인 서비스는 변경하지 않는다. 최초 설치와 업데이트의 다음 단계는 [배포 실행서 §3](docs/DEPLOYMENT.md#3-db-준비와-서비스-전환)을 따른다.
 
 [배포 패키지](deploy/README.md)는 비활성 릴리스의 venv 준비, 명시적 DB 마이그레이션, 두 TLS 호스트와 관리자 mTLS, 단일 loopback worker, 일일 WAL 온라인 백업을 제공한다. 복원은 항상 새 디렉터리에 수행하고 운영 전환은 별도 승인 절차다. [실행서](docs/DEPLOYMENT.md)와 [16개 케이스의 검증 보고서](qa/reports/RS-008.md)를 함께 확인한다. 개발용 테스트 CA·loopback 검증은 실제 OCI, 외부 방화벽 또는 운영 인증서 검증이 아니다.
 
