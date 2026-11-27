@@ -172,3 +172,5 @@ RS-001 티켓을 구현해줘. AGENTS.md와 prompts/COMMON.md를 읽고,
 ## Ubuntu 배포 및 복구 (RS-008)
 
 [배포 패키지](deploy/README.md)는 비활성 릴리스의 venv 준비, 명시적 DB 마이그레이션, 두 TLS 호스트와 관리자 mTLS, 단일 loopback worker, 일일 WAL 온라인 백업을 제공한다. 복원은 항상 새 디렉터리에 수행하고 운영 전환은 별도 승인 절차다. [실행서](docs/DEPLOYMENT.md)와 [16개 케이스의 검증 보고서](qa/reports/RS-008.md)를 함께 확인한다. 개발용 테스트 CA·loopback 검증은 실제 OCI, 외부 방화벽 또는 운영 인증서 검증이 아니다.
+
+RS-009의 [로컬 통합 검증 보고서](qa/reports/RS-009.md)와 [공개 전 체크리스트](docs/RELEASE_CHECKLIST.md)를 구분한다. 새 릴리스 통합 케이스만 실행하려면 개발 venv에서 `python -m pytest -q -s tests/e2e -k tc009`를 사용한다. 임시 SQLite·loopback 서버만 사용하며 외부 서버를 대상으로 받지 않는다.
