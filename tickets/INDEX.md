@@ -9,7 +9,7 @@
 | [RS-005](RS-005.md) | 사용자 모바일 웹 | P0 | RS-004 | DONE |
 | [RS-006](RS-006.md) | 관리자 접근 제어 및 API | P0 | RS-003 | DONE |
 | [RS-007](RS-007.md) | 관리자 모바일 웹 | P0 | RS-006 | DONE |
-| [RS-008](RS-008.md) | OCI 배포 및 백업 | P0 | RS-005,RS-007 | TODO |
+| [RS-008](RS-008.md) | OCI 배포 및 백업 | P0 | RS-005,RS-007 | BLOCKED |
 | [RS-009](RS-009.md) | 통합 테스트 및 릴리스 | P0 | RS-008 | TODO |
 | [RS-010](RS-010.md) | PWA 홈 화면 지원 | P2 | RS-009 | TODO |
 
@@ -61,3 +61,6 @@ RS-004/005와 RS-006/007은 RS-003 이후 독립 진행 가능. RS-008에서 통
 
 ## RS-007 검증 증거
 2026-11-26: 로컬 TC12 PASS, 실제 장치 TC-007-13 NOT RUN. 대상50 PASS(페이지8/E2E42), 전체 pytest1038 PASS(실패·skip0). 실제 Chromium360/390/1280px, 관리 기능 정상·오류, 월 경계/충돌 입력 보존, 정확한 Origin/CSRF, 확인/중복/응답 손실·pagehide·안전 렌더링 검증 PASS. [완료 보고서](../qa/reports/RS-007.md). TEST_PLAN의 필수 로컬 게이트에 따라 DONE이며 실기기·실제 Nginx/mTLS·OCI·공개 릴리스는 별도 미완료. 후속 티켓 미착수.
+
+## RS-008 검증 증거
+2026-11-27: 대상 자동 17 PASS, 전체 회귀 1,055 PASS(실패·skip 0). 로컬 TLS/mTLS·헤더 경계·설치/재실행·WAL 백업/격리 복원 검증. 명세 16개: PASS 10, BLOCKED 3(전용 systemd 권한·재시작·timer), NOT RUN 3(외부 클라이언트·OCI 2개). [실행 명령·전체 회귀·인계](../qa/reports/RS-008.md). 필수 게이트 미검증으로 BLOCKED, 공개 NO-GO. RS-009 미착수.

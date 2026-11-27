@@ -60,7 +60,7 @@ RS-001 구현 계약: `GET /healthz`는 200 및 정확히 `{"status":"ok"}`를 �
 
 모든 공개 API 응답(달력·오류·요청 제한 포함)은 `Cache-Control: no-store`다. CORS 허용 헤더는 추가하지 않는다. 이는 브라우저 읽기 정책이며 인증이나 직접 HTTP 요청 차단 수단이 아니다.
 
-요청 제한의 임시 기본값은 본문 16,384 bytes와 앱 전체 60초당 120요청이다. `ROOMSHARE_MAX_BODY_BYTES`, `ROOMSHARE_RATE_LIMIT_REQUESTS`, `ROOMSHARE_RATE_LIMIT_WINDOW_SECONDS` 1~2,147,483,647 정수로 조정한다. 실제 수신 bytes를 검사하므로 chunked/Content-Length 누락·과소 표기로 우회할 수 없다. 모든 공개 API 요청은 하나의 프로세스 내 고정 시간창을 공유하며 초과 요청은 429다. IP를 구분하거나 X-Forwarded-For/Forwarded를 신뢰하지 않는다. 따라서 IP 헤더 위조로 새 한도를 얻지 못한다. 단일 worker 운영이 전제이며 재시작 시 카운터는 초기화된다. 분산 한도, 프록시 연결/시간 제한 및 실제 신뢰 IP 설정·검증은 RS-008에 남는다. 운영 수치는 승인 전 임시값이다.
+요청 제한의 임시 기본값은 본문 16,384 bytes와 앱 전체 60초당 120요청이다. `ROOMSHARE_MAX_BODY_BYTES`, `ROOMSHARE_RATE_LIMIT_REQUESTS`, `ROOMSHARE_RATE_LIMIT_WINDOW_SECONDS` 1~2,147,483,647 정수로 조정한다. 실제 수신 bytes를 검사하므로 chunked/Content-Length 누락·과소 표기로 우회할 수 없다. 모든 공개 API 요청은 하나의 프로세스 내 고정 시간창을 공유하며 초과 요청은 429다. IP를 구분하거나 X-Forwarded-For/Forwarded를 신뢰하지 않는다. 따라서 IP 헤더 위조로 새 한도를 얻지 못한다. 단일 worker 운영이 전제이며 재시작 시 카운터는 초기화된다. 앞단 Nginx의 연결 IP별 한도와 시간 제한은 [별도 배포 설정](DEPLOYMENT.md)이며 분산 한도가 아니다. 운영 수치는 승인 전 임시값이다.
 
 RS-005 사용자 UI: 생성 응답 손실은 성공 여부 불명이므로 자동 재제출하지 않는다. 토큰은 생성 성공 화면에서만 1회 표시하고 URL/storage/로그에 넣지 않는다. 달력 enum은 기존 4개를 유지하며 선택 가능 여부는 min_date/max_date도 검사한다. 공개 API의 경로·응답·오류 계약은 변경하지 않는다. `GET /`은 DB를 읽지 않고 서버 KST 초기 월을 HTML에 제공하며 `Cache-Control: no-store`, `Referrer-Policy: no-referrer`를 적용한다. 상세 UI 동작은 DESIGN의 RS-005 절을 따른다.
 
@@ -101,4 +101,4 @@ POST/PATCH는 strict JSON 객체만 받으며 추가 필드·타입 강제 변�
 | 변경 이력 | `GET /api/admin/logs?page=N&page_size=10` | 최신순 페이지 이동; 서버의 기존 1~100 허용 범위 사용 |
 | 예약 가능 기간 | `GET/PATCH /api/admin/settings` | 현재 값 확인 및 1~366 입력, 기존 점유 보존 |
 
-`GET /api/calendar`는 관리자 정보가 필요하지 않은 달력 상태를 그대로 재사용한다. 관리자 전용 조회 API·DB 스키마·정책 변경은 없다. 관리자 호스트 프록시는 인증된 브라우저의 같은 origin 달력 조회도 전달해야 한다. 실제 프록시 구성/검증은 RS-008에 남긴다. 공개 호스트의 관리자 경로 차단은 유지한다.
+`GET /api/calendar`는 관리자 정보가 필요하지 않은 달력 상태를 그대로 재사용한다. 관리자 전용 조회 API·DB 스키마·정책 변경은 없다. 관리자 호스트 프록시는 인증된 브라우저의 같은 origin 달력 조회도 전달해야 한다. RS-008의 [프록시 계약·운영 게이트](DEPLOYMENT.md)와 [로컬 실행 결과](../qa/reports/RS-008.md)를 참조한다. 공개 호스트의 관리자 경로 차단은 유지한다.

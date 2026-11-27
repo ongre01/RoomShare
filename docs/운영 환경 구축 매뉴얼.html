@@ -79,7 +79,7 @@
         </ol>
       </nav>
 <blockquote>
-<p>문서 상태: 2026-11-26 기준 운영 구축 절차 초안. RS-008(배포·백업)과 RS-009(통합·릴리스)는 아직 TODO다. 현재 저장소에는 운영용 Nginx 설정, systemd unit, 설치·배포·백업·복원 스크립트가 없다. 아래 경로와 설정 예시는 스테이징에서 검증할 목표이며, 실제 OCI 구축 또는 공개 서비스 완료 기록이 아니다.</p>
+<p>운영 구축 개요. 실제 명령은 <a href="DEPLOYMENT.md">RS-008 배포·복구 실행서</a>, 환경별 판정은 <a href="../qa/reports/RS-008.md">QA 보고서</a>를 따른다. 로컬 시험은 OCI 배포나 공개 승인이 아니다.</p>
 </blockquote>
 <h2 id="section-1">1. 적용 범위와 구축 전 결정</h2>
 <p>RoomShare는 원룸 한 개를 한국 시간의 달력 날짜(<code>YYYY-MM-DD</code>) 단위로 예약하는 FastAPI·SQLite 서비스다. 사용자와 관리자는 서로 다른 HTTPS 호스트를 사용한다. 관리자 주소 분리만으로 접근을 허용하지 않는다. 운영 관리자 호스트는 <strong>mTLS</strong>로 보호하고, 앱의 프록시 검증과 Origin·CSRF 검사도 함께 사용한다. 사설망 방식으로 변경하려면 별도 설계와 검증이 필요하다.</p>
@@ -155,22 +155,9 @@
 <h2 id="section-3">3. 설치와 DB 준비</h2>
 <ol>
 <li><a href="../README.md">README</a>의 검증 환경을 참고해 대상 서버의 Ubuntu·Python·SQLite 버전을 실제로 확인한다. 현재 로컬 검증 값은 Ubuntu 24.04, Python 3.12.3, SQLite 3.45.1이며 다른 조합은 별도 검증이 필요하다. Python 3.11 이상은 초기 목표다.</li>
-<li>승인된 릴리스 커밋을 <code>/opt/roomshare</code>에 배치한다. 소스와 <code>requirements.lock</code>의 버전을 기록한다. 운영 venv에는 개발·브라우저 의존성을 설치하지 않는다.</li>
-<li><code>/opt/roomshare/.venv</code>를 새로 만들고 <code>python -m pip install -r requirements.lock</code> 및 <code>python -m pip check</code>를 실행한다. 실패하면 서비스 전환을 중단한다.</li>
-<li>서비스 계정이 쓰기 가능한 <code>/var/lib/roomshare</code>를 준비한다. DB는 앱 시작 시 자동 생성되지 않는다. <strong>최초 구축</strong>에서만 확정한 예약 가능 기간과 DB 경로로 <code>scripts/migrate.py</code>를 실행한다. 이후 실행은 기존 설정 값을 덮어쓰지 않는다.</li>
+<li>승인된 커밋을 <code>/opt/roomshare/releases/&lt;commit&gt;</code>에 배치한다. 커밋과 <code>requirements.lock</code> 해시를 기록한다. 새 릴리스의 <code>scripts/install.sh</code>로 런타임 venv와 보호된 환경 파일을 준비한다.</li>
+<li>DB는 앱 시작 시 초기화하지 않는다. 서비스 계정으로 명시적 <code>deploy.sh init</code> 또는 <code>deploy.sh upgrade &lt;호환_이전_릴리스&gt;</code>를 실행한다. 기존 DB에는 백업을 먼저 검증한다. 실제 명령·lock·전환 순서는 <a href="DEPLOYMENT.md">실행서</a>를 따른다.</li>
 </ol>
-<p>아래 명령은 환경 값과 서비스 계정을 실제 값으로 바꾼 뒤 승인된 스테이징에서 실행하는 예시다. <code>APPROVED_HORIZON_DAYS</code>는 운영자가 정한 양의 정수여야 한다.</p>
-<pre><code class="language-bash">cd /opt/roomshare
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.lock
-.venv/bin/python -m pip check
-sudo -u roomshare env \
-  ROOMSHARE_DB_PATH=/var/lib/roomshare/roomshare.db \
-  ROOMSHARE_BOOKING_HORIZON_DAYS=&quot;$APPROVED_HORIZON_DAYS&quot; \
-  /opt/roomshare/.venv/bin/python /opt/roomshare/scripts/migrate.py
-sudo -u roomshare env ROOMSHARE_DB_PATH=/var/lib/roomshare/roomshare.db \
-  /opt/roomshare/.venv/bin/python /opt/roomshare/scripts/migrate.py --check
-</code></pre>
 <p><code>--check</code>는 기존 DB를 읽기 전용으로 확인하며 <code>schema: ...; integrity: ok; foreign keys: ok</code>가 나와야 한다. 모든 명령의 종료 코드도 기록한다. 기존 DB에 새 마이그레이션을 적용하기 전에는 호환성과 검증된 백업을 확인한다. 다운그레이드 명령은 제공되지 않는다.</p>
 <h2 id="section-4">4. 운영 설정과 앱 서비스</h2>
 <p>서비스가 읽는 환경 파일에는 최소한 아래 값을 넣는다. <code>ROOMSHARE_PUBLIC_HOST</code>와 <code>ROOMSHARE_ADMIN_HOST</code>는 스킴·포트·경로가 없는 서로 다른 실제 호스트명이어야 한다. 상대 DB 경로는 저장소 루트 기준으로 해석되므로 운영에서는 절대 경로를 쓴다. 선택적 저장소 <code>.env</code>보다 프로세스 환경 변수가 우선한다.</p>
@@ -185,31 +172,10 @@ ROOMSHARE_RATE_LIMIT_REQUESTS=120
 ROOMSHARE_RATE_LIMIT_WINDOW_SECONDS=60
 </code></pre>
 <p>마지막 세 제한값은 승인 전 임시값이다. 초기에는 관리자 접근을 <code>deny</code>로 유지한다. mTLS 프록시 검증이 끝난 후 <code>ROOMSHARE_ADMIN_ACCESS=proxy_mtls</code>로 바꾸고, CSPRNG로 생성한 32바이트 이상의 URL-safe 비밀(<code>ROOMSHARE_ADMIN_PROXY_SECRET</code>, 43~128자)을 보호된 앱 환경 파일과 Nginx 설정에 <strong>같은 값</strong>으로 제공한다. 비밀을 터미널 기록·로그·브라우저·저장소에 남기지 않는다. 앱과 프록시의 비밀은 함께 회전한다. CSRF 비밀은 앱 시작 시 메모리에서 생성되므로 별도 파일이 필요 없다.</p>
-<p>RS-008에서 만들 systemd unit은 다음 계약을 만족해야 한다. 실제 unit을 설치하기 전 <code>systemd-analyze verify</code>와 스테이징 기동을 수행한다.</p>
-<pre><code class="language-ini">[Unit]
-Description=RoomShare
-After=network.target
-
-[Service]
-Type=simple
-User=roomshare
-Group=roomshare
-WorkingDirectory=/opt/roomshare
-EnvironmentFile=/etc/roomshare/roomshare.env
-ExecStart=/opt/roomshare/.venv/bin/python -m uvicorn app.main:create_app --factory --workers 1 --host 127.0.0.1 --port 8000 --no-proxy-headers --no-access-log
-Restart=on-failure
-UMask=0077
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/lib/roomshare
-
-[Install]
-WantedBy=multi-user.target
-</code></pre>
+<p>실제 <a href="../deploy/systemd/">systemd unit과 timer</a>를 기준으로 <code>systemd-analyze verify</code> 후 승인된 전용 스테이징에서 기동한다. <code>current</code>는 검증된 릴리스에 대한 symlink다.</p>
 <p>단일 worker가 필수다. 앱의 요청 빈도 카운터와 관리자 CSRF 키가 프로세스 메모리에 있고, 관리자 guard는 실제 loopback peer를 검사한다. <code>--no-proxy-headers</code>를 제거하거나 백엔드를 외부 인터페이스에 바인딩하면 신뢰 경계가 바뀐다. 앱 포트에 대한 외부 연결은 OCI 보안 규칙과 OS 방화벽에서도 차단하고 외부 클라이언트에서 확인한다. 서비스 시작 후 <code>systemctl status</code>, <code>journalctl</code>(비밀 마스킹), <code>curl --fail http://127.0.0.1:8000/healthz</code>로 상태를 확인한다.</p>
 <h2 id="section-5">5. Nginx와 인증서</h2>
-<p>RS-008에서 <strong>격리된 스테이징 설정</strong>으로 사용자·관리자·미등록 호스트의 가상 호스트를 분리한다. 아래 사항을 모두 만족하는 설정을 만든 뒤 <code>nginx -t</code>, 로컬 TLS 시험, 인증서 행렬 시험을 통과해야 한다. 현재 저장소에는 복사 가능한 Nginx 설정 파일이 없다.</p>
+<p><a href="../deploy/nginx/">Nginx 템플릿</a>을 <strong>격리된 스테이징</strong>의 DNS·서버 키·관리 CA/CRL에 맞춘다. 아래 사항과 <code>nginx -t</code>·TLS/인증서 행렬을 실제 환경마다 확인한다.</p>
 <ol>
 <li>443에서 두 호스트의 유효한 서버 TLS 인증서를 제공하고, 알 수 없는 SNI/Host는 기본 가상 호스트에서 거부한다. 80은 승인된 인증서 검증·HTTPS 이동 용도로만 연다. Host와 SNI가 서로 다를 때도 관리자 기능에 도달하지 못하게 한다.</li>
 <li>사용자 호스트의 <code>/admin</code>, <code>/admin/</code> 및 <code>/api/admin</code>, <code>/api/admin/</code> 하위 경로를 프록시 전에 차단한다. 사용자 호스트는 관리자 검증 헤더를 upstream에 전달하지 않는다.</li>
@@ -220,9 +186,9 @@ WantedBy=multi-user.target
 </ol>
 <p>관리자 페이지는 관리자 호스트의 <code>/admin</code>으로 직접 연다. 변경 요청은 브라우저가 보낸 정확한 <code>Origin: https://&lt;관리자 호스트&gt;</code>와 발급된 CSRF 토큰을 요구한다. 테스트 코드의 인증 컨텍스트 주입은 실제 mTLS 검증 증거가 아니다. 자세한 앱 계약은 <a href="DEPLOYMENT.md">DEPLOYMENT</a>의 RS-006/007 절을 따른다.</p>
 <h2 id="section-6">6. 백업과 복원</h2>
-<p>SQLite는 WAL 모드다. 실행 중인 DB 파일이나 <code>-wal</code> 파일만 단순 복사하지 않는다. RS-008에서 SQLite backup API 또는 <code>sqlite3 .backup</code>을 사용하는 백업 작업과 일일 systemd timer를 구현·검증해야 한다.</p>
+<p>SQLite는 WAL 모드다. 실행 중인 DB 파일이나 <code>-wal</code> 파일만 단순 복사하지 않는다. <a href="../scripts/snapshot.py">snapshot.py</a>의 <code>backup</code>과 일일 systemd timer를 사용한다.</p>
 <p>백업 절차는 <strong>임시 파일에 일관된 스냅샷 생성 → 무결성·외래키·마이그레이션 버전 검사 → 권한 확인 → 최종 이름으로 이동 → 별도 위치 보관</strong> 순서로 설계한다. 생성 실패·검사 실패는 0이 아닌 종료 코드로 기록하고 정상 백업으로 취급하지 않는다. 백업 보존 기간은 운영자가 정하며 이력 보관 임시값 90일과 별개다. 최신 검증 백업을 보존하고, 보관 위치의 접근 권한과 디스크 여유를 정기적으로 확인한다.</p>
-<p>복원은 먼저 격리된 임시 경로에 백업 사본을 놓고 <code>scripts/migrate.py --db-path &lt;임시_DB&gt; --check</code> 및 실제 예약·차단·설정 조회로 검증한다. 운영 DB 교체는 별도 승인 후 서비스 중지, 교체 직전 백업, 기존 DB와 WAL·SHM 보존, 복원본 무결성 재확인, 서비스 재시작, 기능 확인 순서로 수행한다. 기존 DB에 새 파일을 덮어쓰거나 남은 WAL·SHM과 섞지 않는다. 손상 백업은 거부하고 원본 DB를 보존한다. <strong>현재 저장소에는 이 절차를 자동화·검증한 스크립트가 없으므로 운영 복원을 실행 절차로 간주하지 않는다.</strong></p>
+<p><code>restore</code>는 새 사설 디렉터리에만 복원한다. <code>scripts/migrate.py --db-path &lt;복원_DB&gt; --check</code> 및 실제 예약·차단·설정 조회로 검증한다. 운영 전환은 명시적 승인 후 서비스 정지, 직전 백업, 원래 DB/WAL/SHM 보존, 새 DB 경로 선택, 재시작·기능 확인 순이다. 손상 백업이나 기존 목적지에는 진행하지 않는다.</p>
 <h2 id="section-7">7. 배포 전환·검증·되돌리기</h2>
 <ol>
 <li>릴리스 커밋, <code>requirements.lock</code>, DB 스키마 버전, 이전 릴리스와의 DB 호환성을 기록한다. 승인된 스테이징에서 전체 <code>python -m pytest -q</code>와 RS-008/009의 관련 검증을 수행한다.</li>

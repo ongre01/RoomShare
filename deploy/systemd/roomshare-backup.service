@@ -1,0 +1,21 @@
+[Unit]
+Description=Create and verify a RoomShare online SQLite snapshot
+
+[Service]
+Type=oneshot
+User=roomshare
+Group=roomshare
+WorkingDirectory=/opt/roomshare/current
+EnvironmentFile=/etc/roomshare/roomshare.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/flock --shared --nonblock --no-fork ${ROOMSHARE_DB_PATH}.lock /opt/roomshare/current/.venv/bin/python scripts/snapshot.py backup ${ROOMSHARE_DB_PATH} ${ROOMSHARE_BACKUP_DIR} --retention-days ${ROOMSHARE_BACKUP_RETENTION_DAYS}
+TimeoutStartSec=10min
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/roomshare /var/backups/roomshare
+StandardOutput=journal
+StandardError=journal

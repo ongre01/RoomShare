@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily RoomShare backup
+
+[Timer]
+OnCalendar=daily
+Persistent=yes
+Unit=roomshare-backup.service
+
+[Install]
+WantedBy=timers.target

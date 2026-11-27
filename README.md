@@ -1,9 +1,9 @@
 # RoomShare — AI Agent Starter
-개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스, RS-005는 사용자 모바일 예약 화면, RS-006은 보호된 관리자 API, RS-007은 관리자 모바일 화면을 제공한다. 운영 배포는 후속 티켓 범위다.
+개인 원룸 하나를 날짜 단위로 공유하는 모바일 웹 프로젝트. RS-001은 최소 FastAPI 앱과 로컬 개발 환경, RS-002는 SQLite 기반, RS-003은 예약 생성·달력 서비스, RS-004는 공개 HTTP API와 취소 서비스, RS-005는 사용자 모바일 예약 화면, RS-006은 보호된 관리자 API, RS-007은 관리자 모바일 화면을 제공한다. RS-008의 [Ubuntu 배포·백업·복원 실행서](docs/DEPLOYMENT.md)는 로컬 검증과 실제 OCI 배포를 구분한다. 공개 릴리스 전 단계다.
 
 ## 로컬 설치 및 실행 (RS-001)
 
-검증 환경: Ubuntu 24.04, Python 3.12.3, SQLite 3.45.1. Python 3.11 이상은 초기 목표이며 다른 Python 버전은 별도 검증이 필요하다. 시스템에 `python`이 없으면 가상환경 생성에 `python3`를 사용한다. 저장소 루트에서 실행한다.
+검증 환경: Ubuntu 24.04, Python 3.12.3, SQLite 3.45.1. Python 3.11 이상은 초기 목표이며 다른 Python 버전은 별도 검증이 필요하다. 시스템에 `python`이 없으면 가상환경 생성에 `python3`를 사용한다. 전체 개발 테스트에는 Chromium과 RS-008의 Nginx·OpenSSL CLI·systemd-analyze·flock이 필요하다. 테스트는 호스트 서비스를 설치하거나 reload하지 않는다. 저장소 루트에서 실행한다.
 
 ```bash
 python3 -m venv .venv
@@ -40,7 +40,7 @@ python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --n
 
 상대 DB 경로는 cwd가 아닌 소스 저장소 루트를 기준으로 절대 경로로 정규화한다. 빈 경로, NUL/제어 문자 및 기존 디렉터리는 거부한다. 호스트는 스킴·포트·경로 없는 ASCII 호스트명이고 공백 제거, 소문자화, 마지막 점 하나 제거 후 검증한다. 정규화 후 두 호스트가 같으면 오류다. 기간은 양의 정수 또는 숫자 문자열만 허용하며 bool/실수/빈 값은 거부한다. timezone은 `Asia/Seoul`, 관리자 접근 모드는 `deny` 또는 `proxy_mtls`다. 잘못된 설정은 값 자체를 노출하지 않는 `SettingsError`로 서버 시작을 실패시킨다.
 
-관리자 `/admin`, `/api/admin` 및 하위 경로는 기본 403이다. RS-006의 명시적 `proxy_mtls` 모드는 정확한 관리자 Host, loopback 실제 연결, 프록시 mTLS 검증 신호, 내부 공유 비밀을 모두 요구한다. 변경 요청은 HTTPS Origin과 CSRF도 검증한다. 테스트용 인증 주입은 Python 테스트 코드에만 있으며 환경 설정 우회는 없다. 실제 Nginx/mTLS/외부 접근 검증은 RS-008에 남는다. 자동 API 문서 경로도 비활성화한다. 템플릿/정적 경로는 소스 위치 기준이며 Jinja HTML 자동 이스케이프와 모바일 viewport를 사용한다.
+관리자 `/admin`, `/api/admin` 및 하위 경로는 기본 403이다. RS-006의 명시적 `proxy_mtls` 모드는 정확한 관리자 Host, loopback 실제 연결, 프록시 mTLS 검증 신호, 내부 공유 비밀을 모두 요구한다. 변경 요청은 HTTPS Origin과 CSRF도 검증한다. 테스트용 인증 주입은 Python 테스트 코드에만 있으며 환경 설정 우회는 없다. RS-008은 실제 Nginx/mTLS를 격리 검증하며 외부 접근 여부는 별도 확인한다. 자동 API 문서 경로도 비활성화한다. 템플릿/정적 경로는 소스 위치 기준이며 Jinja HTML 자동 이스케이프와 모바일 viewport를 사용한다.
 
 ## 테스트와 lock 갱신
 
@@ -54,6 +54,7 @@ python -m pytest -q tests/test_public_api.py tests/test_cancellation.py tests/te
 python -m pytest -q tests/test_public_page.py tests/e2e/test_public_ui.py
 python -m pytest -q tests/test_admin_access.py tests/test_admin_api.py tests/test_admin_service.py
 python -m pytest -q tests/test_admin_page.py tests/e2e/test_admin_ui.py
+python -m pytest -q tests/test_deployment.py tests/deployment/test_proxy.py tests/test_backup_restore.py
 python -m pytest -q
 python3 scripts/verify_bootstrap.py
 git diff --check
@@ -108,7 +109,7 @@ python scripts/migrate.py --db-path "$rs002_tmp_dir/roomshare.db" --check
 
 취소 서비스는 `cancel_reservation(db_path, *, id, cancel_token, clock=utc_now, busy_timeout_ms=5000)`다. 유효한 토큰과 전체 미래 점유를 같은 쓰기 트랜잭션에서 검사하고 점유 해제·상태·UTC 시각·이력을 원자적으로 기록한다. 유효한 반복 취소는 추가 변경 없이 성공한다. 앱 팩토리의 키워드 `clock`, `busy_timeout_ms`는 테스트 주입용이며 HTTP로 변경할 수 없다.
 
-요청 제한 설정 3개는 1~2,147,483,647 정수(숫자 문자열 허용)이며 0/음수/bool/실수는 시작 시 거부한다. 본문 크기는 실제 수신 bytes로 검사한다. 빈도는 모든 공개 API 요청이 공유하는 프로세스별 고정 시간창으로 적용하며 전달 IP 헤더를 사용하지 않는다. 단일 worker를 유지하고 운영 수치는 별도 승인·조정한다. 공개 API의 성공/오류 모두 no-store이며 CORS 허용 헤더를 추가하지 않는다. 실제 프록시/TLS/운영 검증은 RS-008에 남아 있다. [RS-004 검증 보고서](qa/reports/RS-004.md).
+요청 제한 설정 3개는 1~2,147,483,647 정수(숫자 문자열 허용)이며 0/음수/bool/실수는 시작 시 거부한다. 본문 크기는 실제 수신 bytes로 검사한다. 빈도는 모든 공개 API 요청이 공유하는 프로세스별 고정 시간창으로 적용하며 전달 IP 헤더를 사용하지 않는다. 단일 worker를 유지하고 운영 수치는 별도 승인·조정한다. 공개 API의 성공/오류 모두 no-store이며 CORS 허용 헤더를 추가하지 않는다. [앱 검증](qa/reports/RS-004.md)과 [프록시 검증](qa/reports/RS-008.md)은 별도다.
 
 ## 사용자 모바일 화면 및 브라우저 검증 (RS-005)
 
@@ -167,3 +168,7 @@ RS-001 티켓을 구현해줘. AGENTS.md와 prompts/COMMON.md를 읽고,
 접근/CSRF 실패는 인증 환경을 확인한 뒤 `접근 다시 확인`으로 갱신한다. 실패한 변경은 자동 재제출하지 않으며 입력을 유지한다. 연결이 끊겨 결과를 알 수 없으면 `전체 새로고침`으로 처리 여부부터 확인한다. CSRF와 관리 정보는 브라우저 영구 저장소에 쓰지 않는다. 페이지를 떠나면 입력과 관리 데이터를 지운다.
 
 테스트는 기존 개발 lock의 Playwright Python/Chromium과 임시 SQLite를 사용한다. 로컬 자동화는 실제 mTLS나 실기기 인증서 검증을 대신하지 않는다. [관리자 수동 검증 절차](tests/manual/admin-ui.md)와 [RS-007 검증 보고서](qa/reports/RS-007.md)에 로컬/실기기/배포 결과를 구분한다.
+
+## Ubuntu 배포 및 복구 (RS-008)
+
+[배포 패키지](deploy/README.md)는 비활성 릴리스의 venv 준비, 명시적 DB 마이그레이션, 두 TLS 호스트와 관리자 mTLS, 단일 loopback worker, 일일 WAL 온라인 백업을 제공한다. 복원은 항상 새 디렉터리에 수행하고 운영 전환은 별도 승인 절차다. [실행서](docs/DEPLOYMENT.md)와 [16개 케이스의 검증 보고서](qa/reports/RS-008.md)를 함께 확인한다. 개발용 테스트 CA·loopback 검증은 실제 OCI, 외부 방화벽 또는 운영 인증서 검증이 아니다.

@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light">
     <meta name="referrer" content="no-referrer">
     <title>{% block title %}RoomShare{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/main.css').path }}">
     {% block scripts %}{% endblock %}
   </head>
   <body>
